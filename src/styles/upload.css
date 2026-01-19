@@ -209,6 +209,30 @@
   color: var(--color-text-muted);
 }
 
+/* Warning message */
+.upload-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  color: #fbbf24;
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
+.upload-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.upload-warning span {
+  line-height: 1.4;
+}
+
 /* Buttons */
 .btn-primary,
 .btn-secondary {
