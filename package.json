@@ -1,0 +1,23 @@
+{
+  "name": "360-pano-viewer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "360° Panorama Viewer für Agenturen - Insta360 DNG zu Web mit interaktiven Hotspots",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@photo-sphere-viewer/core": "^5.11.5",
+    "@photo-sphere-viewer/markers-plugin": "^5.11.5",
+    "@photo-sphere-viewer/virtual-tour-plugin": "^5.11.5",
+    "@photo-sphere-viewer/autorotate-plugin": "^5.11.5",
+    "three": "^0.160.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.4.11"
+  }
+}
