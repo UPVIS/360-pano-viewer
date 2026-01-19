@@ -94,7 +94,8 @@ html, body {
   z-index: 100;
 }
 
-#controls button {
+#controls button,
+#controls a.control-btn {
   width: 48px;
   height: 48px;
   display: flex;
