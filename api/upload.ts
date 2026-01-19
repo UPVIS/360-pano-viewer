@@ -35,6 +35,11 @@ function generateId(): string {
   return `pano_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+// Check if Blob storage is configured
+function isBlobConfigured(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN;
+}
+
 // Process and convert image to multiple resolutions
 async function processImage(
   buffer: Buffer,
@@ -81,6 +86,9 @@ async function processImage(
     low: '',
   };
 
+  // Check if Blob storage is available
+  const useBlob = isBlobConfigured();
+
   for (const [key, size] of Object.entries(resolutions)) {
     const resizedBuffer = await sharp(imageBuffer)
       .resize(size.width, size.height, {
@@ -90,17 +98,22 @@ async function processImage(
       .webp({ quality: key === 'low' ? 60 : 85 })
       .toBuffer();
 
-    // Upload to Vercel Blob
-    const blob = await put(
-      `panoramas/${panoramaId}/${key}.webp`,
-      resizedBuffer,
-      {
-        access: 'public',
-        contentType: 'image/webp',
-      }
-    );
-
-    urls[key as keyof typeof urls] = blob.url;
+    if (useBlob) {
+      // Upload to Vercel Blob
+      const blob = await put(
+        `panoramas/${panoramaId}/${key}.webp`,
+        resizedBuffer,
+        {
+          access: 'public',
+          contentType: 'image/webp',
+        }
+      );
+      urls[key as keyof typeof urls] = blob.url;
+    } else {
+      // Return as base64 data URL (for testing without Blob)
+      const base64 = resizedBuffer.toString('base64');
+      urls[key as keyof typeof urls] = `data:image/webp;base64,${base64}`;
+    }
   }
 
   return urls;
@@ -117,15 +130,9 @@ export default async function handler(
   }
 
   try {
-    // Check for Blob token
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      res.status(500).json({
-        success: false,
-        error: 'Server nicht konfiguriert. BLOB_READ_WRITE_TOKEN fehlt.',
-      });
-      return;
-    }
-
+    // Note: If BLOB_READ_WRITE_TOKEN is not set, we'll use base64 data URLs as fallback
+    // This is fine for testing but not recommended for production with large files
+    
     // Parse multipart form data
     // Note: Vercel automatically parses multipart if content-type is set correctly
     const contentType = req.headers['content-type'] || '';
