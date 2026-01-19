@@ -138,6 +138,23 @@
   transition: width 0.3s ease;
 }
 
+/* Animated progress bar for conversion phase */
+.progress-bar[style*="width: 100%"] {
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    #818cf8,
+    var(--color-accent)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .progress-status {
   display: flex;
   justify-content: space-between;

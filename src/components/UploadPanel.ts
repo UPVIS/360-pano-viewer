@@ -253,11 +253,51 @@ export class UploadPanel {
 
       // Update status text for processing phase
       xhr.upload.addEventListener('loadend', () => {
-        if (this.statusText) {
-          this.statusText.textContent = 'Wird konvertiert...';
-        }
+        this.showConversionStatus();
       });
     });
+  }
+
+  private conversionInterval: number | null = null;
+
+  private showConversionStatus(): void {
+    const statusText = this.container.querySelector('#statusText');
+    const progressPercent = this.container.querySelector('#progressPercent');
+    const progressBar = this.container.querySelector('#progressBar') as HTMLElement;
+    
+    if (progressPercent) progressPercent.textContent = '';
+    if (progressBar) progressBar.style.width = '100%';
+    
+    // Animated status messages
+    const stages = [
+      { text: '⏳ Server verarbeitet Datei...', delay: 0 },
+      { text: '🔍 Analysiere Bildformat...', delay: 2000 },
+      { text: '📷 Extrahiere Bilddaten...', delay: 4000 },
+      { text: '🖼️ Erstelle 4K Version...', delay: 6000 },
+      { text: '🖼️ Erstelle 2K Version...', delay: 9000 },
+      { text: '🖼️ Erstelle Preview...', delay: 11000 },
+      { text: '💾 Speichere Dateien...', delay: 13000 },
+    ];
+
+    let currentStage = 0;
+    
+    if (statusText) {
+      statusText.textContent = stages[0].text;
+      
+      this.conversionInterval = window.setInterval(() => {
+        currentStage++;
+        if (currentStage < stages.length && statusText) {
+          statusText.textContent = stages[currentStage].text;
+        }
+      }, 2500);
+    }
+  }
+
+  private clearConversionStatus(): void {
+    if (this.conversionInterval) {
+      clearInterval(this.conversionInterval);
+      this.conversionInterval = null;
+    }
   }
 
   private showProgress(file: File): void {
@@ -290,6 +330,8 @@ export class UploadPanel {
   }
 
   private showSuccess(result: UploadResult): void {
+    this.clearConversionStatus();
+    
     const progress = this.container.querySelector('#uploadProgress');
     const resultEl = this.container.querySelector('#uploadResult');
     const successEl = this.container.querySelector('#resultSuccess');
@@ -330,6 +372,8 @@ export class UploadPanel {
   }
 
   private showError(message: string): void {
+    this.clearConversionStatus();
+    
     const dropzone = this.container.querySelector('#dropzone');
     const progress = this.container.querySelector('#uploadProgress');
     const resultEl = this.container.querySelector('#uploadResult');
