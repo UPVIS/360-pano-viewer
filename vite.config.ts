@@ -25,6 +25,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         upload: resolve(__dirname, 'upload.html'),
+        admin: resolve(__dirname, 'admin.html'),
       },
     },
   },
