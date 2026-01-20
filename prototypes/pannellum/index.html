@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototyp: Pannellum</title>
+  
+  <!-- Pannellum CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+    }
+    
+    .header {
+      padding: 1rem;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: #888;
+    }
+    
+    .stat-value {
+      color: #4ade80;
+      font-weight: 600;
+    }
+    
+    #viewer {
+      width: 100%;
+      height: calc(100vh - 60px);
+    }
+    
+    .controls {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 1000;
+    }
+    
+    .btn {
+      padding: 0.5rem 1rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    /* Custom hotspot styling */
+    .custom-hotspot {
+      width: 30px;
+      height: 30px;
+      background: rgba(74, 222, 128, 0.9);
+      border-radius: 50%;
+      border: 3px solid #fff;
+      cursor: pointer;
+      transition: transform 0.2s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .custom-hotspot:hover {
+      transform: scale(1.2);
+    }
+    
+    .custom-hotspot.nav {
+      background: rgba(59, 130, 246, 0.9);
+      width: 40px;
+      height: 40px;
+    }
+    
+    /* Custom tooltip */
+    .hotspot-tooltip {
+      background: rgba(0,0,0,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      max-width: 300px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .hotspot-tooltip h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    
+    .hotspot-tooltip p {
+      color: #aaa;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Pannellum - Prototyp</h1>
+    <div class="stats">
+      <div>Ladezeit: <span id="loadTime" class="stat-value">-</span></div>
+      <div>FPS: <span id="fps" class="stat-value">-</span></div>
+      <div>Bundle: <span class="stat-value">~21KB</span></div>
+    </div>
+  </div>
+  
+  <div id="viewer"></div>
+  
+  <div class="controls">
+    <button class="btn" onclick="addHotspot()">+ Hotspot hinzufügen</button>
+    <button class="btn" onclick="toggleAutorotate()">Autorotate</button>
+    <button class="btn" onclick="viewer.toggleFullscreen()">Fullscreen</button>
+  </div>
+
+  <!-- Pannellum JS -->
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <script>
+    // Performance tracking
+    const startTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = startTime;
+    let autoRotating = false;
+    
+    // Hotspot click handler
+    function hotspotClick(event, args) {
+      console.log('Hotspot clicked:', args);
+      
+      if (args.type === 'nav') {
+        alert(`Navigation zu: ${args.target}`);
+      } else {
+        alert(`Info: ${args.title}\n\n${args.description || 'Keine Beschreibung'}`);
+      }
+    }
+    
+    // Create custom hotspot element
+    function createHotspotElement(hotSpotDiv, args) {
+      hotSpotDiv.classList.add('custom-hotspot');
+      if (args.type === 'nav') {
+        hotSpotDiv.classList.add('nav');
+      }
+      
+      // Create tooltip on hover
+      const tooltip = document.createElement('div');
+      tooltip.className = 'hotspot-tooltip';
+      tooltip.innerHTML = `
+        <h3>${args.title || 'Hotspot'}</h3>
+        <p>${args.description || 'Klicken für mehr Infos'}</p>
+      `;
+      tooltip.style.display = 'none';
+      tooltip.style.position = 'absolute';
+      tooltip.style.bottom = '40px';
+      tooltip.style.left = '50%';
+      tooltip.style.transform = 'translateX(-50%)';
+      hotSpotDiv.appendChild(tooltip);
+      
+      hotSpotDiv.addEventListener('mouseenter', () => {
+        tooltip.style.display = 'block';
+      });
+      
+      hotSpotDiv.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+      });
+    }
+    
+    // Create viewer
+    const viewer = pannellum.viewer('viewer', {
+      type: 'equirectangular',
+      // WICHTIG: Ersetze mit deinem 4K Panorama-Pfad
+      panorama: '../../test-assets/sample-4k.jpg',
+      autoLoad: true,
+      showControls: false,
+      mouseZoom: true,
+      keyboardZoom: true,
+      friction: 0.15,
+      yaw: 0,
+      pitch: 0,
+      hfov: 100,
+      minHfov: 30,
+      maxHfov: 120,
+      hotSpots: [
+        {
+          pitch: 0,
+          yaw: 45,
+          type: 'custom',
+          createTooltipFunc: createHotspotElement,
+          createTooltipArgs: { 
+            type: 'info', 
+            title: 'Info-Punkt 1',
+            description: 'Dies ist ein Beispiel für einen Point of Interest.'
+          },
+          clickHandlerFunc: hotspotClick,
+          clickHandlerArgs: { 
+            type: 'info', 
+            title: 'Info-Punkt 1',
+            description: 'Detaillierte Beschreibung hier...'
+          }
+        },
+        {
+          pitch: 10,
+          yaw: -90,
+          type: 'custom',
+          createTooltipFunc: createHotspotElement,
+          createTooltipArgs: { 
+            type: 'nav', 
+            title: 'Nächster Raum',
+            description: 'Klicken zum Wechseln'
+          },
+          clickHandlerFunc: hotspotClick,
+          clickHandlerArgs: { 
+            type: 'nav', 
+            target: 'panorama-2'
+          }
+        }
+      ]
+    });
+    
+    // Track load time
+    viewer.on('load', function() {
+      const loadTime = Math.round(performance.now() - startTime);
+      document.getElementById('loadTime').textContent = loadTime + 'ms';
+      console.log('Pannellum ready in', loadTime, 'ms');
+    });
+    
+    // FPS counter (Pannellum doesn't expose render loop, estimate from animation)
+    function updateFPS() {
+      frameCount++;
+      const now = performance.now();
+      
+      if (now - lastFpsUpdate >= 1000) {
+        const fps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+        document.getElementById('fps').textContent = fps;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+      
+      requestAnimationFrame(updateFPS);
+    }
+    updateFPS();
+    
+    // Control functions
+    let hotspotCounter = 3;
+    
+    window.addHotspot = function() {
+      const pitch = viewer.getPitch();
+      const yaw = viewer.getYaw();
+      const id = `hotspot-${hotspotCounter++}`;
+      
+      viewer.addHotSpot({
+        id: id,
+        pitch: pitch,
+        yaw: yaw,
+        type: 'custom',
+        createTooltipFunc: createHotspotElement,
+        createTooltipArgs: { 
+          type: 'info', 
+          title: `Neuer Hotspot ${id}`
+        },
+        clickHandlerFunc: hotspotClick,
+        clickHandlerArgs: { 
+          type: 'info', 
+          title: `Neuer Hotspot ${id}`
+        }
+      });
+      
+      console.log('Hotspot added at:', { pitch, yaw });
+    };
+    
+    window.toggleAutorotate = function() {
+      if (autoRotating) {
+        viewer.stopAutoRotate();
+        autoRotating = false;
+      } else {
+        viewer.startAutoRotate(2); // 2 degrees per second
+        autoRotating = true;
+      }
+    };
+  </script>
+</body>
+</html>

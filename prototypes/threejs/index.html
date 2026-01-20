@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototyp: Three.js Direkt</title>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    .header {
+      padding: 1rem;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: #888;
+    }
+    
+    .stat-value {
+      color: #4ade80;
+      font-weight: 600;
+    }
+    
+    #viewer {
+      width: 100%;
+      height: calc(100vh - 60px);
+      position: relative;
+    }
+    
+    .controls {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 1000;
+    }
+    
+    .btn {
+      padding: 0.5rem 1rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    /* CSS2D Labels */
+    .hotspot-label {
+      background: rgba(74, 222, 128, 0.9);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .hotspot-label:hover {
+      transform: scale(1.2);
+    }
+    
+    .hotspot-label.nav {
+      background: rgba(59, 130, 246, 0.9);
+      width: 40px;
+      height: 40px;
+    }
+    
+    .hotspot-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    
+    .hotspot-label:hover .hotspot-tooltip {
+      opacity: 1;
+    }
+    
+    .dev-note {
+      position: fixed;
+      bottom: 4rem;
+      left: 1rem;
+      background: rgba(251, 191, 36, 0.2);
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.75rem;
+      color: #fbbf24;
+      max-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Three.js Direkt - Prototyp</h1>
+    <div class="stats">
+      <div>Ladezeit: <span id="loadTime" class="stat-value">-</span></div>
+      <div>FPS: <span id="fps" class="stat-value">-</span></div>
+      <div>Bundle: <span class="stat-value">~150KB</span></div>
+    </div>
+  </div>
+  
+  <div id="viewer"></div>
+  
+  <div class="controls">
+    <button class="btn" onclick="addHotspot()">+ Hotspot hinzufügen</button>
+    <button class="btn" onclick="toggleAutorotate()">Autorotate</button>
+    <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+  </div>
+  
+  <div class="dev-note">
+    <strong>Entwickler-Hinweis:</strong> Dies ist eine Minimal-Implementierung mit Three.js. 
+    Für vollständige Hotspot-Funktionalität müsste CSS2DRenderer oder Raycasting implementiert werden.
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.min.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    
+    // Performance tracking
+    const startTime = performance.now();
+    let autoRotating = false;
+    
+    // Setup
+    const container = document.getElementById('viewer');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    // Scene
+    const scene = new THREE.Scene();
+    
+    // Camera (inside sphere looking out)
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.set(0, 0, 0.1);
+    
+    // WebGL Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+    
+    // CSS2D Renderer for labels
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(width, height);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.pointerEvents = 'auto';
+    container.appendChild(labelRenderer.domElement);
+    
+    // Controls
+    const controls = new OrbitControls(camera, labelRenderer.domElement);
+    controls.enableZoom = true;
+    controls.enablePan = false;
+    controls.rotateSpeed = -0.25;
+    controls.zoomSpeed = 0.5;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 0.1;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    
+    // Panorama sphere
+    const geometry = new THREE.SphereGeometry(500, 60, 40);
+    geometry.scale(-1, 1, 1); // Invert for inside viewing
+    
+    // Load texture
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load(
+      // WICHTIG: Ersetze mit deinem 4K Panorama-Pfad
+      '../../test-assets/sample-4k.jpg',
+      () => {
+        const loadTime = Math.round(performance.now() - startTime);
+        document.getElementById('loadTime').textContent = loadTime + 'ms';
+        console.log('Three.js ready in', loadTime, 'ms');
+      }
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+    
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+    
+    // Hotspots array
+    const hotspots = [];
+    let hotspotCounter = 0;
+    
+    // Create hotspot function
+    function createHotspot(position, data) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `hotspot-label ${data.type === 'nav' ? 'nav' : ''}`;
+      
+      const tooltip = document.createElement('div');
+      tooltip.className = 'hotspot-tooltip';
+      tooltip.textContent = data.title;
+      wrapper.appendChild(tooltip);
+      
+      wrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (data.type === 'nav') {
+          alert(`Navigation zu: ${data.target}`);
+        } else {
+          alert(`Info: ${data.title}\n\n${data.description || 'Keine Beschreibung'}`);
+        }
+      });
+      
+      const label = new CSS2DObject(wrapper);
+      label.position.copy(position);
+      scene.add(label);
+      hotspots.push(label);
+      
+      return label;
+    }
+    
+    // Convert yaw/pitch to 3D position
+    function yawPitchToPosition(yaw, pitch, radius = 100) {
+      const phi = (90 - pitch) * Math.PI / 180;
+      const theta = yaw * Math.PI / 180;
+      
+      return new THREE.Vector3(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+    }
+    
+    // Add initial hotspots
+    createHotspot(
+      yawPitchToPosition(45, 0),
+      { type: 'info', title: 'Info-Punkt 1', description: 'Beispiel POI' }
+    );
+    
+    createHotspot(
+      yawPitchToPosition(-90, 10),
+      { type: 'nav', title: 'Nächster Raum', target: 'panorama-2' }
+    );
+    
+    // FPS tracking
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+    
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      controls.update();
+      
+      if (autoRotating) {
+        sphere.rotation.y += 0.0005;
+      }
+      
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+      
+      // FPS counter
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsUpdate >= 1000) {
+        const fps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+        document.getElementById('fps').textContent = fps;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+    }
+    animate();
+    
+    // Resize handler
+    window.addEventListener('resize', () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      
+      renderer.setSize(width, height);
+      labelRenderer.setSize(width, height);
+    });
+    
+    // Control functions
+    window.addHotspot = function() {
+      // Get camera direction
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      direction.multiplyScalar(100);
+      
+      const id = ++hotspotCounter;
+      createHotspot(direction, { type: 'info', title: `Neuer Hotspot ${id}` });
+      
+      console.log('Hotspot added at:', direction);
+    };
+    
+    window.toggleAutorotate = function() {
+      autoRotating = !autoRotating;
+    };
+    
+    window.toggleFullscreen = function() {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    };
+  </script>
+</body>
+</html>

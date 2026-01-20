@@ -1,0 +1,28 @@
+{
+  "name": "360-pano-viewer",
+  "version": "2.0.0",
+  "private": true,
+  "description": "360° Panorama Viewer - Complete Rewrite",
+  "scripts": {
+    "dev": "npx turbo dev",
+    "build": "npx turbo build",
+    "lint": "npx turbo lint",
+    "clean": "rm -rf node_modules .turbo",
+    "serve:prototypes": "npx serve prototypes -p 3000",
+    "typecheck": "npx turbo typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0",
+    "prettier": "^3.4.0",
+    "serve": "^14.2.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "prototypes/*"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

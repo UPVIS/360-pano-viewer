@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototyp: Marzipano</title>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+    }
+    
+    .header {
+      padding: 1rem;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: #888;
+    }
+    
+    .stat-value {
+      color: #4ade80;
+      font-weight: 600;
+    }
+    
+    #viewer {
+      width: 100%;
+      height: calc(100vh - 60px);
+      position: relative;
+    }
+    
+    .controls {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 1000;
+    }
+    
+    .btn {
+      padding: 0.5rem 1rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.5rem;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    /* Hotspot styling */
+    .hotspot {
+      width: 30px;
+      height: 30px;
+      background: rgba(74, 222, 128, 0.9);
+      border-radius: 50%;
+      border: 3px solid #fff;
+      cursor: pointer;
+      transition: transform 0.2s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      position: absolute;
+      transform: translate(-50%, -50%);
+    }
+    
+    .hotspot:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+    
+    .hotspot.nav {
+      background: rgba(59, 130, 246, 0.9);
+      width: 40px;
+      height: 40px;
+    }
+    
+    .hotspot-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      margin-bottom: 10px;
+    }
+    
+    .hotspot:hover .hotspot-tooltip {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Marzipano - Prototyp</h1>
+    <div class="stats">
+      <div>Ladezeit: <span id="loadTime" class="stat-value">-</span></div>
+      <div>FPS: <span id="fps" class="stat-value">-</span></div>
+      <div>Bundle: <span class="stat-value">~75KB</span></div>
+    </div>
+  </div>
+  
+  <div id="viewer"></div>
+  
+  <div class="controls">
+    <button class="btn" onclick="addHotspot()">+ Hotspot hinzufügen</button>
+    <button class="btn" onclick="toggleAutorotate()">Autorotate</button>
+    <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+  </div>
+
+  <!-- Marzipano JS -->
+  <script src="https://cdn.jsdelivr.net/npm/marzipano@0.10.2/dist/marzipano.js"></script>
+
+  <script>
+    // Performance tracking
+    const startTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = startTime;
+    let autoRotating = false;
+    let autoRotateId = null;
+    
+    // Viewer element
+    const viewerElement = document.getElementById('viewer');
+    
+    // Create viewer
+    const viewer = new Marzipano.Viewer(viewerElement, {
+      controls: {
+        mouseViewMode: 'drag'
+      }
+    });
+    
+    // Create source and geometry
+    const source = Marzipano.ImageUrlSource.fromString(
+      // WICHTIG: Ersetze mit deinem 4K Panorama-Pfad
+      '../../test-assets/sample-4k.jpg'
+    );
+    
+    const geometry = new Marzipano.EquirectGeometry([{ width: 4096 }]);
+    
+    const limiter = Marzipano.RectilinearView.limit.traditional(
+      4096,  // max resolution
+      100 * Math.PI / 180  // max FOV
+    );
+    
+    const view = new Marzipano.RectilinearView({ yaw: 0, pitch: 0, fov: Math.PI / 2 }, limiter);
+    
+    // Create scene
+    const scene = viewer.createScene({
+      source: source,
+      geometry: geometry,
+      view: view,
+      pinFirstLevel: true
+    });
+    
+    // Display scene
+    scene.switchTo();
+    
+    // Track load time
+    scene.layer().textureStore().addEventListener('textureLoad', function() {
+      const loadTime = Math.round(performance.now() - startTime);
+      document.getElementById('loadTime').textContent = loadTime + 'ms';
+      console.log('Marzipano ready in', loadTime, 'ms');
+    });
+    
+    // Hotspots container
+    const hotspotsContainer = scene.hotspotContainer();
+    let hotspotCounter = 1;
+    
+    // Add initial hotspots
+    function createHotspotElement(data) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `hotspot ${data.type === 'nav' ? 'nav' : ''}`;
+      
+      const tooltip = document.createElement('div');
+      tooltip.className = 'hotspot-tooltip';
+      tooltip.textContent = data.title;
+      wrapper.appendChild(tooltip);
+      
+      wrapper.addEventListener('click', () => {
+        if (data.type === 'nav') {
+          alert(`Navigation zu: ${data.target}`);
+        } else {
+          alert(`Info: ${data.title}\n\n${data.description || 'Keine Beschreibung'}`);
+        }
+      });
+      
+      return wrapper;
+    }
+    
+    // Add initial hotspots
+    const hotspot1 = hotspotsContainer.createHotspot(
+      createHotspotElement({ type: 'info', title: 'Info-Punkt 1', description: 'Beispiel POI' }),
+      { yaw: Math.PI / 4, pitch: 0 }
+    );
+    
+    const hotspot2 = hotspotsContainer.createHotspot(
+      createHotspotElement({ type: 'nav', title: 'Nächster Raum', target: 'panorama-2' }),
+      { yaw: -Math.PI / 2, pitch: 0.17 }
+    );
+    
+    // FPS counter
+    function updateFPS() {
+      frameCount++;
+      const now = performance.now();
+      
+      if (now - lastFpsUpdate >= 1000) {
+        const fps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+        document.getElementById('fps').textContent = fps;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+      
+      requestAnimationFrame(updateFPS);
+    }
+    updateFPS();
+    
+    // Control functions
+    window.addHotspot = function() {
+      const viewParams = view.parameters();
+      const id = hotspotCounter++;
+      
+      hotspotsContainer.createHotspot(
+        createHotspotElement({ type: 'info', title: `Neuer Hotspot ${id}` }),
+        { yaw: viewParams.yaw, pitch: viewParams.pitch }
+      );
+      
+      console.log('Hotspot added at:', viewParams);
+    };
+    
+    window.toggleAutorotate = function() {
+      if (autoRotating) {
+        cancelAnimationFrame(autoRotateId);
+        autoRotating = false;
+      } else {
+        autoRotating = true;
+        function rotate() {
+          const viewParams = view.parameters();
+          view.setYaw(viewParams.yaw + 0.001);
+          if (autoRotating) {
+            autoRotateId = requestAnimationFrame(rotate);
+          }
+        }
+        rotate();
+      }
+    };
+    
+    window.toggleFullscreen = function() {
+      if (!document.fullscreenElement) {
+        viewerElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    };
+  </script>
+</body>
+</html>
