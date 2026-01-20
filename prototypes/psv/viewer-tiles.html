@@ -81,6 +81,53 @@
     body.placement-active #viewer canvas { cursor: crosshair !important; }
     
     /* ==========================================
+       MODE TOGGLE (Always visible)
+    ========================================== */
+    #mode-toggle-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 160;
+    }
+    
+    .mode-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .mode-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--accent-color);
+    }
+    
+    .mode-toggle-btn .mode-icon {
+      opacity: 0.8;
+    }
+    
+    body.mode-editor .mode-toggle-btn {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: var(--bg-primary);
+    }
+    
+    body.mode-editor .mode-toggle-btn .mode-icon {
+      opacity: 1;
+    }
+    
+    /* ==========================================
        EDITOR TOOLBAR
     ========================================== */
     #editor-toolbar {
@@ -1513,6 +1560,16 @@
     <!-- Viewer -->
     <div id="viewer" tabindex="0" aria-label="Interaktives 360-Grad Panorama"></div>
     
+    <!-- Mode Toggle (Always visible) -->
+    <div id="mode-toggle-container">
+      <button id="btn-mode-toggle" class="mode-toggle-btn" title="Modus wechseln">
+        <svg class="mode-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <span id="mode-toggle-text">Editor</span>
+      </button>
+    </div>
+    
     <!-- Editor Toolbar (Editor Mode only) -->
     <div id="editor-toolbar" class="editor-only" role="toolbar" aria-label="Editor Werkzeuge">
       <button id="tool-poi" class="toolbar-btn" title="POI hinzufügen" aria-label="Point of Interest hinzufügen">
@@ -1531,10 +1588,6 @@
           <circle cx="12" cy="12" r="3"/>
           <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
         </svg>
-      </button>
-      <span class="toolbar-divider"></span>
-      <button id="btn-mode-toggle" class="toolbar-btn mode-toggle" title="Modus wechseln">
-        <span>Viewer</span>
       </button>
     </div>
     
@@ -2210,11 +2263,13 @@
       iconFullscreen: $('#icon-fullscreen'),
       iconFullscreenExit: $('#icon-fullscreen-exit'),
       // Editor
+      modeToggleContainer: $('#mode-toggle-container'),
+      btnModeToggle: $('#btn-mode-toggle'),
+      modeToggleText: $('#mode-toggle-text'),
       editorToolbar: $('#editor-toolbar'),
       toolPoi: $('#tool-poi'),
       toolNav: $('#tool-nav'),
       toolView: $('#tool-view'),
-      btnModeToggle: $('#btn-mode-toggle'),
       propsPanel: $('#properties-panel'),
       propsTitle: $('#props-title'),
       propsClose: $('#props-close'),
@@ -2430,9 +2485,9 @@
       window.history.replaceState({}, '', url);
       
       // Update toggle button text
-      const modeToggle = $('#btn-mode-toggle');
-      if (modeToggle) {
-        modeToggle.querySelector('span').textContent = mode === 'editor' ? 'Viewer' : 'Editor';
+      const modeToggleText = $('#mode-toggle-text');
+      if (modeToggleText) {
+        modeToggleText.textContent = mode === 'editor' ? 'Viewer' : 'Editor';
       }
       
       // Clear selection when switching to viewer
@@ -2445,6 +2500,9 @@
       
       // Re-render scenes panel to show/hide edit controls
       renderScenesPanel();
+      
+      // Refresh markers to update their edit state
+      refreshAllMarkers();
       
       console.log(`[Mode] Switched to ${mode} mode`);
     }
