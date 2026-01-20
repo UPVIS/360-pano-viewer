@@ -2,9 +2,9 @@
   "id": "demo-project",
   "version": 1,
   "name": "Demo Tour",
-  "description": "Demo-Projekt zum Testen der Multi-Panorama-Navigation",
-  "created": "2026-01-20T20:00:00.000Z",
-  "modified": "2026-01-20T20:00:00.000Z",
+  "description": "Demo-Projekt mit echten 8K Panoramen",
+  "created": "2026-01-20T21:00:00.000Z",
+  "modified": "2026-01-20T21:00:00.000Z",
   
   "settings": {
     "accentColor": "#4ade80",
@@ -19,59 +19,59 @@
     "showControls": true,
     "showScenesList": true,
     "pitchLimitsDefault": {
-      "min": -30,
-      "max": 30
+      "min": -45,
+      "max": 45
     }
   },
   
   "panoramas": [
     {
-      "id": "scene-1",
-      "name": "Eingang",
-      "description": "Der Haupteingang des Gebäudes",
-      "tilesPath": "/test-assets/tiles/sample/",
-      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "id": "minedump",
+      "name": "Minedump Flats",
+      "description": "Weite Ebene mit dramatischem Himmel",
+      "tilesPath": "/test-assets/tiles/minedump/",
+      "previewPath": "/test-assets/tiles/minedump/preview.webp",
       "initialView": {
         "yaw": 0,
         "pitch": 0,
         "fov": 70
       },
       "pitchLimits": {
-        "min": -30,
-        "max": 30
+        "min": -45,
+        "max": 45
       },
       "pois": [
         {
-          "id": "poi-1",
-          "position": { "yaw": 0.8, "pitch": 0 },
-          "title": "Willkommen",
-          "description": "Willkommen in unserer virtuellen Tour!",
+          "id": "poi-minedump-1",
+          "position": { "yaw": 0.5, "pitch": 0.1 },
+          "title": "Weite Landschaft",
+          "description": "Blick über die Ebene",
           "icon": "info"
         }
       ],
       "navArrows": [
         {
-          "id": "arrow-1",
-          "position": { "yaw": -1.5, "pitch": -0.25 },
-          "targetPanoramaId": "scene-2",
-          "label": "Wohnzimmer"
+          "id": "arrow-to-evening",
+          "position": { "yaw": -1.2, "pitch": -0.3 },
+          "targetPanoramaId": "modern-evening",
+          "label": "Abendstraße"
         },
         {
-          "id": "arrow-2",
-          "position": { "yaw": 1.8, "pitch": -0.2 },
-          "targetPanoramaId": "scene-3",
-          "label": "Küche"
+          "id": "arrow-to-bridge",
+          "position": { "yaw": 2.0, "pitch": -0.25 },
+          "targetPanoramaId": "cedar-bridge",
+          "label": "Brücke"
         }
       ]
     },
     {
-      "id": "scene-2",
-      "name": "Wohnzimmer",
-      "description": "Das geräumige Wohnzimmer",
-      "tilesPath": "/test-assets/tiles/sample/",
-      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "id": "modern-evening",
+      "name": "Abendstraße",
+      "description": "Moderne Straße am Abend",
+      "tilesPath": "/test-assets/tiles/modern_evening/",
+      "previewPath": "/test-assets/tiles/modern_evening/preview.webp",
       "initialView": {
-        "yaw": 1.5,
+        "yaw": 1.0,
         "pitch": 0,
         "fov": 70
       },
@@ -81,56 +81,64 @@
       },
       "pois": [
         {
-          "id": "poi-2",
-          "position": { "yaw": 0.5, "pitch": 0.1 },
-          "title": "Sofa-Ecke",
-          "description": "Gemütliche Sitzecke mit Blick auf den Fernseher",
+          "id": "poi-evening-1",
+          "position": { "yaw": 0.8, "pitch": 0 },
+          "title": "Abendstimmung",
+          "description": "Die Stadt erwacht zum Leben",
           "icon": "info"
         }
       ],
       "navArrows": [
         {
-          "id": "arrow-3",
-          "position": { "yaw": 3.0, "pitch": -0.25 },
-          "targetPanoramaId": "scene-1",
-          "label": "Zurück zum Eingang"
+          "id": "arrow-to-minedump",
+          "position": { "yaw": 2.8, "pitch": -0.25 },
+          "targetPanoramaId": "minedump",
+          "label": "Zurück"
         },
         {
-          "id": "arrow-4",
-          "position": { "yaw": -0.8, "pitch": -0.2 },
-          "targetPanoramaId": "scene-3",
-          "label": "Küche"
+          "id": "arrow-to-bridge-2",
+          "position": { "yaw": -0.5, "pitch": -0.2 },
+          "targetPanoramaId": "cedar-bridge",
+          "label": "Brücke"
         }
       ]
     },
     {
-      "id": "scene-3",
-      "name": "Küche",
-      "description": "Die moderne Küche",
-      "tilesPath": "/test-assets/tiles/sample/",
-      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "id": "cedar-bridge",
+      "name": "Cedar Bridge",
+      "description": "Sonnenuntergang an der Brücke",
+      "tilesPath": "/test-assets/tiles/cedar_bridge/",
+      "previewPath": "/test-assets/tiles/cedar_bridge/preview.webp",
       "initialView": {
         "yaw": -0.5,
-        "pitch": 0,
+        "pitch": 0.1,
         "fov": 70
       },
       "pitchLimits": {
-        "min": -30,
-        "max": 30
+        "min": -50,
+        "max": 50
       },
-      "pois": [],
+      "pois": [
+        {
+          "id": "poi-bridge-1",
+          "position": { "yaw": 0, "pitch": 0.2 },
+          "title": "Sonnenuntergang",
+          "description": "Goldene Stunde an der Cedar Bridge",
+          "icon": "info"
+        }
+      ],
       "navArrows": [
         {
-          "id": "arrow-5",
+          "id": "arrow-to-minedump-2",
           "position": { "yaw": 2.5, "pitch": -0.25 },
-          "targetPanoramaId": "scene-1",
-          "label": "Eingang"
+          "targetPanoramaId": "minedump",
+          "label": "Minedump"
         },
         {
-          "id": "arrow-6",
+          "id": "arrow-to-evening-2",
           "position": { "yaw": 0.8, "pitch": -0.2 },
-          "targetPanoramaId": "scene-2",
-          "label": "Wohnzimmer"
+          "targetPanoramaId": "modern-evening",
+          "label": "Abendstraße"
         }
       ]
     }

@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "created": "2026-01-20T20:14:11.346Z",
+  "original": {
+    "filename": "cedar_bridge_sunset_1_8k.jpg",
+    "width": 8192,
+    "height": 4096,
+    "format": "jpeg"
+  },
+  "tileSize": 512,
+  "format": "webp",
+  "quality": 85,
+  "preview": "preview.webp",
+  "previewWidth": 256,
+  "levels": [
+    {
+      "level": 0,
+      "name": "low",
+      "width": 2048,
+      "height": 1024,
+      "cols": 4,
+      "rows": 2,
+      "tileSize": 512
+    },
+    {
+      "level": 1,
+      "name": "medium",
+      "width": 4096,
+      "height": 2048,
+      "cols": 8,
+      "rows": 4,
+      "tileSize": 512
+    },
+    {
+      "level": 2,
+      "name": "high",
+      "width": 8192,
+      "height": 4096,
+      "cols": 16,
+      "rows": 8,
+      "tileSize": 512
+    }
+  ]
+}
