@@ -4,59 +4,91 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0a0a0a">
-  <title>360° Panorama Viewer (Tile-Streaming)</title>
+  <meta name="description" content="360° Panorama Viewer mit Tile-Streaming">
+  <title>360° Panorama Viewer</title>
   
   <!-- Photo Sphere Viewer CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.min.css">
   
   <style>
+    /* ==========================================
+       CSS VARIABLES & THEME
+    ========================================== */
     :root {
       --accent-color: #4ade80;
+      --accent-hover: #22c55e;
       --bg-primary: #0a0a0a;
       --bg-secondary: #111111;
       --bg-tertiary: #1a1a1a;
       --text-primary: #ffffff;
       --text-secondary: #888888;
+      --text-muted: #555555;
       --border-color: rgba(255, 255, 255, 0.1);
-      --glass-bg: rgba(0, 0, 0, 0.8);
+      --glass-bg: rgba(0, 0, 0, 0.85);
       --glass-border: rgba(255, 255, 255, 0.1);
       --control-size: 44px;
+      --control-size-mobile: 48px;
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
+      --transition-fast: 0.15s ease;
+      --transition-normal: 0.25s ease;
     }
     
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* ==========================================
+       RESET & BASE
+    ========================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
     
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
       touch-action: none;
+      -webkit-font-smoothing: antialiased;
     }
     
+    /* Focus visible for accessibility */
+    :focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+    
+    /* ==========================================
+       VIEWER CONTAINER
+    ========================================== */
     #viewer-container {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
+      background: var(--bg-primary);
+    }
+    
+    #viewer {
       width: 100%;
       height: 100%;
     }
     
-    #viewer { width: 100%; height: 100%; }
-    
-    /* Loading with blur-up */
+    /* ==========================================
+       LOADING OVERLAY (Blur-up)
+    ========================================== */
     #loading-overlay {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      inset: 0;
       background: var(--bg-primary);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 200;
       transition: opacity 0.8s ease-out;
     }
     
@@ -67,13 +99,14 @@
     
     #loading-preview {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       filter: blur(30px);
       transform: scale(1.2);
-      opacity: 0.6;
-      transition: filter 0.5s, opacity 0.5s;
+      opacity: 0.5;
+      transition: filter 0.6s ease, opacity 0.6s ease;
     }
     
     #loading-overlay.loaded #loading-preview {
@@ -81,57 +114,44 @@
       opacity: 1;
     }
     
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 1;
+    }
+    
     .loading-spinner {
-      width: 48px; height: 48px;
+      width: 48px;
+      height: 48px;
       border: 3px solid var(--border-color);
       border-top-color: var(--accent-color);
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      z-index: 1;
     }
     
     .loading-text {
       margin-top: 1rem;
       color: var(--text-secondary);
       font-size: 0.875rem;
-      z-index: 1;
     }
     
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    /* Stats overlay */
-    .stats-overlay {
-      position: absolute;
-      top: 1rem;
-      left: 1rem;
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 0.5rem;
-      padding: 0.75rem 1rem;
+    .loading-progress {
+      margin-top: 0.5rem;
       font-size: 0.75rem;
-      color: var(--text-secondary);
-      backdrop-filter: blur(10px);
-      z-index: 50;
+      color: var(--text-muted);
     }
     
-    .stats-overlay .stat-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 0.25rem;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
     
-    .stats-overlay .stat-row:last-child { margin-bottom: 0; }
-    
-    .stats-overlay .stat-value {
-      color: var(--accent-color);
-      font-weight: 600;
-    }
-    
-    /* Controls */
+    /* ==========================================
+       CONTROL BUTTONS
+    ========================================== */
     .controls-container {
       position: absolute;
-      z-index: 50;
+      z-index: 100;
       display: flex;
       gap: 0.5rem;
     }
@@ -139,6 +159,11 @@
     .controls-top-right {
       top: 1rem;
       right: 1rem;
+    }
+    
+    .controls-top-left {
+      top: 1rem;
+      left: 1rem;
     }
     
     .controls-bottom {
@@ -157,27 +182,36 @@
       height: var(--control-size);
       background: var(--glass-bg);
       border: 1px solid var(--glass-border);
-      border-radius: 0.5rem;
+      border-radius: var(--radius-md);
       color: var(--text-primary);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
-      transition: all 0.2s;
-      backdrop-filter: blur(10px);
+      transition: all var(--transition-fast);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     
     .control-btn:hover {
-      background: rgba(255,255,255,0.15);
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.2);
     }
     
-    .control-btn:active { transform: scale(0.95); }
+    .control-btn:active {
+      transform: scale(0.95);
+    }
     
     .control-btn.active {
       background: var(--accent-color);
       color: #000;
       border-color: var(--accent-color);
+    }
+    
+    .control-btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     
     .control-btn svg {
@@ -186,37 +220,380 @@
       fill: currentColor;
     }
     
-    /* Compass */
+    /* Mobile: Larger touch targets */
+    @media (max-width: 768px) {
+      .control-btn {
+        width: var(--control-size-mobile);
+        height: var(--control-size-mobile);
+      }
+      
+      .controls-top-right,
+      .controls-top-left {
+        top: 0.75rem;
+      }
+      
+      .controls-top-right { right: 0.75rem; }
+      .controls-top-left { left: 0.75rem; }
+      .controls-bottom { bottom: 0.75rem; }
+      .controls-bottom-left {
+        bottom: 0.75rem;
+        left: 0.75rem;
+      }
+    }
+    
+    /* ==========================================
+       COMPASS
+    ========================================== */
     .compass {
-      width: 60px;
-      height: 60px;
+      width: 56px;
+      height: 56px;
       background: var(--glass-bg);
       border: 1px solid var(--glass-border);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       position: relative;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .compass:hover {
+      border-color: rgba(255, 255, 255, 0.2);
     }
     
     .compass-needle {
       width: 4px;
-      height: 24px;
-      background: linear-gradient(to bottom, #ef4444 50%, #fff 50%);
+      height: 22px;
+      background: linear-gradient(to bottom, #ef4444 50%, #ffffff 50%);
       border-radius: 2px;
       transition: transform 0.1s ease-out;
     }
     
     .compass-n {
       position: absolute;
-      top: 4px;
-      font-size: 0.625rem;
-      font-weight: bold;
+      top: 6px;
+      font-size: 0.5rem;
+      font-weight: 700;
       color: #ef4444;
+      letter-spacing: 0.5px;
     }
     
-    /* Markers */
+    /* ==========================================
+       STATS OVERLAY (Dev Mode)
+    ========================================== */
+    .stats-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 0.625rem 0.875rem;
+      font-size: 0.6875rem;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      color: var(--text-secondary);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 90;
+      opacity: 0.9;
+      transition: opacity var(--transition-fast);
+    }
+    
+    .stats-overlay:hover {
+      opacity: 1;
+    }
+    
+    .stats-overlay .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      line-height: 1.5;
+    }
+    
+    .stats-overlay .stat-value {
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+      .stats-overlay {
+        display: none;
+      }
+    }
+    
+    /* ==========================================
+       SCENES PANEL
+    ========================================== */
+    .scenes-panel {
+      position: absolute;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 90;
+      max-width: calc(100vw - 2rem);
+      overflow-x: auto;
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-normal);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .scenes-panel.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    
+    .scene-thumb {
+      width: 72px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+      position: relative;
+    }
+    
+    .scene-thumb:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: scale(1.05);
+    }
+    
+    .scene-thumb.active {
+      border-color: var(--accent-color);
+    }
+    
+    .scene-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .scene-thumb-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      padding: 0.25rem;
+      font-size: 0.5rem;
+      text-align: center;
+      color: var(--text-primary);
+    }
+    
+    /* ==========================================
+       SETTINGS PANEL
+    ========================================== */
+    .settings-panel {
+      position: absolute;
+      top: 4rem;
+      right: 1rem;
+      width: 280px;
+      max-width: calc(100vw - 2rem);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 110;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-10px);
+      transition: all var(--transition-normal);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .settings-panel.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    
+    .settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .settings-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .settings-close {
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+    
+    .settings-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+    
+    .setting-group {
+      margin-bottom: 1rem;
+    }
+    
+    .setting-group-title {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+    }
+    
+    .setting-label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+    
+    .setting-value {
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    
+    /* Toggle Switch */
+    .toggle {
+      width: 40px;
+      height: 22px;
+      background: var(--bg-tertiary);
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      border: 1px solid var(--border-color);
+    }
+    
+    .toggle.active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+    }
+    
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform var(--transition-fast);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .toggle.active::after {
+      transform: translateX(18px);
+    }
+    
+    /* Range Slider */
+    .range-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .range-slider {
+      width: 80px;
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    .range-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent-color);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .range-value {
+      font-size: 0.75rem;
+      color: var(--text-primary);
+      min-width: 2rem;
+      text-align: right;
+    }
+    
+    /* ==========================================
+       TOAST NOTIFICATION
+    ========================================== */
+    .toast {
+      position: fixed;
+      bottom: 6rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--glass-bg);
+      border: 1px solid var(--accent-color);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1.25rem;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    
+    .toast svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--accent-color);
+    }
+    
+    /* ==========================================
+       MARKERS
+    ========================================== */
     .marker-poi {
       width: 36px;
       height: 36px;
@@ -227,19 +604,21 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
+      font-weight: 700;
       color: #000;
       font-size: 14px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-      transition: transform 0.2s;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      transition: transform var(--transition-fast);
     }
     
-    .marker-poi:hover { transform: scale(1.15); }
+    .marker-poi:hover {
+      transform: scale(1.15);
+    }
     
     .marker-nav {
       width: 48px;
       height: 48px;
-      background: rgba(59, 130, 246, 0.9);
+      background: rgba(59, 130, 246, 0.95);
       border: 3px solid #fff;
       border-radius: 50%;
       cursor: pointer;
@@ -247,89 +626,259 @@
       align-items: center;
       justify-content: center;
       color: #fff;
-      font-size: 24px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-      transition: transform 0.2s;
-      animation: pulse 2s infinite;
+      font-size: 22px;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+      animation: navPulse 2.5s ease-in-out infinite;
     }
     
     .marker-nav:hover {
-      transform: scale(1.15);
+      transform: scale(1.12);
       animation: none;
+      box-shadow: 0 4px 25px rgba(59, 130, 246, 0.6);
     }
     
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
-      50% { box-shadow: 0 4px 25px rgba(59, 130, 246, 0.7); }
+    @keyframes navPulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4); }
+      50% { box-shadow: 0 4px 30px rgba(59, 130, 246, 0.7); }
     }
     
-    /* Tooltip */
+    /* Tooltip Override */
     .psv-tooltip {
       background: var(--glass-bg) !important;
       border: 1px solid var(--glass-border) !important;
-      border-radius: 0.5rem !important;
-      backdrop-filter: blur(10px) !important;
+      border-radius: var(--radius-md) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+    
+    .tooltip-content {
+      padding: 0.25rem 0;
+    }
+    
+    .tooltip-content h4 {
+      margin: 0 0 0.25rem 0;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .tooltip-content p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    
+    /* ==========================================
+       KEYBOARD HINT (shown briefly)
+    ========================================== */
+    .keyboard-hint {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(12px);
+      z-index: 80;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .keyboard-hint.visible {
+      opacity: 1;
+    }
+    
+    .keyboard-hint kbd {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      padding: 0.125rem 0.375rem;
+      font-family: inherit;
+      margin: 0 0.125rem;
+    }
+    
+    @media (max-width: 768px) {
+      .keyboard-hint { display: none; }
+    }
+    
+    /* ==========================================
+       FULLSCREEN ADJUSTMENTS
+    ========================================== */
+    :fullscreen #viewer-container,
+    :-webkit-full-screen #viewer-container {
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    /* ==========================================
+       SCREEN READER ONLY
+    ========================================== */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
   </style>
 </head>
 <body>
-  <div id="viewer-container">
+  <!-- Skip Link for Accessibility -->
+  <a href="#viewer" class="sr-only" id="skip-link">Zum Panorama springen</a>
+  
+  <div id="viewer-container" role="application" aria-label="360-Grad Panorama Viewer">
+    
     <!-- Loading Overlay with Blur-up -->
-    <div id="loading-overlay">
-      <img id="loading-preview" src="/test-assets/tiles/sample/preview.webp" alt="">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Lade Panorama...</div>
+    <div id="loading-overlay" role="status" aria-live="polite">
+      <img id="loading-preview" src="/test-assets/tiles/sample/preview.webp" alt="" aria-hidden="true">
+      <div class="loading-content">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">Panorama wird geladen...</div>
+        <div class="loading-progress" id="loading-progress"></div>
+      </div>
     </div>
     
-    <div id="viewer"></div>
+    <!-- Viewer -->
+    <div id="viewer" tabindex="0" aria-label="Interaktives 360-Grad Panorama"></div>
     
-    <!-- Stats Overlay -->
-    <div class="stats-overlay">
+    <!-- Stats Overlay (Dev Mode) -->
+    <div class="stats-overlay" aria-hidden="true">
       <div class="stat-row">
-        <span>Modus:</span>
-        <span class="stat-value">Tile-Streaming</span>
-      </div>
-      <div class="stat-row">
-        <span>Tiles geladen:</span>
+        <span>Tiles:</span>
         <span class="stat-value" id="tiles-loaded">0</span>
       </div>
       <div class="stat-row">
-        <span>Zoom-Level:</span>
-        <span class="stat-value" id="zoom-level">0</span>
+        <span>FPS:</span>
+        <span class="stat-value" id="fps-display">--</span>
       </div>
       <div class="stat-row">
-        <span>Ladezeit:</span>
-        <span class="stat-value" id="load-time">-</span>
+        <span>Zoom:</span>
+        <span class="stat-value" id="zoom-level">50%</span>
+      </div>
+      <div class="stat-row">
+        <span>Load:</span>
+        <span class="stat-value" id="load-time">--</span>
       </div>
     </div>
     
-    <!-- Controls -->
+    <!-- Top Right Controls -->
     <div class="controls-container controls-top-right">
-      <button class="control-btn" id="btn-fullscreen" title="Vollbild">
-        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      <button class="control-btn" id="btn-settings" title="Einstellungen" aria-label="Einstellungen öffnen" aria-expanded="false" aria-controls="settings-panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-share" title="Link teilen" aria-label="Link teilen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-fullscreen" title="Vollbild (F)" aria-label="Vollbildmodus umschalten">
+        <svg viewBox="0 0 24 24" aria-hidden="true" id="icon-fullscreen"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" id="icon-fullscreen-exit" style="display:none"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
       </button>
     </div>
     
+    <!-- Bottom Center Controls -->
     <div class="controls-container controls-bottom">
-      <button class="control-btn" id="btn-zoom-out" title="Herauszoomen">
-        <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+      <button class="control-btn" id="btn-zoom-out" title="Herauszoomen (-)" aria-label="Herauszoomen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13H5v-2h14v2z"/></svg>
       </button>
-      <button class="control-btn" id="btn-autorotate" title="Auto-Rotation">
-        <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      <button class="control-btn" id="btn-scenes" title="Szenen" aria-label="Szenen anzeigen" aria-expanded="false" aria-controls="scenes-panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
       </button>
-      <button class="control-btn" id="btn-zoom-in" title="Hineinzoomen">
-        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      <button class="control-btn" id="btn-autorotate" title="Auto-Rotation (R)" aria-label="Auto-Rotation umschalten" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-zoom-in" title="Hineinzoomen (+)" aria-label="Hineinzoomen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
       </button>
     </div>
     
+    <!-- Bottom Left: Compass -->
     <div class="controls-container controls-bottom-left">
-      <div class="compass" id="compass">
-        <span class="compass-n">N</span>
-        <div class="compass-needle" id="compass-needle"></div>
+      <div class="compass" id="compass" role="img" aria-label="Kompass - zeigt Blickrichtung" title="Klicken zum Zurücksetzen">
+        <span class="compass-n" aria-hidden="true">N</span>
+        <div class="compass-needle" id="compass-needle" aria-hidden="true"></div>
       </div>
+    </div>
+    
+    <!-- Scenes Panel -->
+    <div class="scenes-panel" id="scenes-panel" role="listbox" aria-label="Verfügbare Szenen">
+      <div class="scene-thumb active" role="option" aria-selected="true" tabindex="0" data-scene="scene-1">
+        <img src="/test-assets/tiles/sample/preview.webp" alt="Szene 1">
+        <span class="scene-thumb-label">Szene 1</span>
+      </div>
+      <div class="scene-thumb" role="option" aria-selected="false" tabindex="-1" data-scene="scene-2">
+        <img src="/test-assets/tiles/sample/preview.webp" alt="Szene 2" style="filter: hue-rotate(60deg);">
+        <span class="scene-thumb-label">Szene 2</span>
+      </div>
+      <div class="scene-thumb" role="option" aria-selected="false" tabindex="-1" data-scene="scene-3">
+        <img src="/test-assets/tiles/sample/preview.webp" alt="Szene 3" style="filter: hue-rotate(180deg);">
+        <span class="scene-thumb-label">Szene 3</span>
+      </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settings-panel" role="dialog" aria-labelledby="settings-title" aria-hidden="true">
+      <div class="settings-header">
+        <h2 class="settings-title" id="settings-title">Einstellungen</h2>
+        <button class="settings-close" id="settings-close" aria-label="Schließen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      
+      <div class="setting-group">
+        <div class="setting-group-title">Ansicht</div>
+        <div class="setting-row">
+          <span class="setting-label">Auto-Rotation</span>
+          <div class="toggle" id="toggle-autorotate" role="switch" aria-checked="false" tabindex="0"></div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Geschwindigkeit</span>
+          <div class="range-container">
+            <input type="range" class="range-slider" id="slider-speed" min="1" max="10" value="5" aria-label="Rotationsgeschwindigkeit">
+            <span class="range-value" id="speed-value">5</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="setting-group">
+        <div class="setting-group-title">Aktuell</div>
+        <div class="setting-row">
+          <span class="setting-label">Blickrichtung</span>
+          <span class="setting-value" id="current-yaw">0°</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Neigung</span>
+          <span class="setting-value" id="current-pitch">0°</span>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Zoom</span>
+          <span class="setting-value" id="current-zoom">50%</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="alert" aria-live="polite">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      <span id="toast-message">Link kopiert!</span>
+    </div>
+    
+    <!-- Keyboard Hint -->
+    <div class="keyboard-hint" id="keyboard-hint">
+      <kbd>F</kbd> Vollbild &nbsp; <kbd>R</kbd> Rotation &nbsp; <kbd>+</kbd><kbd>-</kbd> Zoom &nbsp; <kbd>ESC</kbd> Schließen
     </div>
   </div>
 
+  <!-- Photo Sphere Viewer JS -->
   <script type="importmap">
     {
       "imports": {
@@ -349,176 +898,499 @@
     import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
     
     // ==========================================
-    // TILE CONFIGURATION (from manifest)
+    // CONFIGURATION
     // ==========================================
-    const TILES_CONFIG = {
-      baseUrl: '/test-assets/tiles/sample/preview.webp',
-      width: 4096,
-      cols: 8,
-      rows: 4,
-      levels: [
-        { width: 2048, cols: 4, rows: 2 },   // Level 0: Low
-        { width: 4096, cols: 8, rows: 4 },   // Level 1: Medium
-        { width: 4096, cols: 8, rows: 4 },   // Level 2: High
-      ],
-      tileUrl: (col, row, level) => {
-        return `/test-assets/tiles/sample/level-${level}/row-${row}/tile-${col}.webp`;
+    const CONFIG = {
+      tiles: {
+        baseUrl: '/test-assets/tiles/sample/preview.webp',
+        width: 4096,
+        cols: 8,
+        rows: 4,
+        tileUrl: (col, row) => `/test-assets/tiles/sample/level-1/row-${row}/tile-${col}.webp`
+      },
+      initialView: {
+        yaw: 0,
+        pitch: 0,
+        fov: 70
+      },
+      pitchLimits: {
+        min: -30,  // degrees
+        max: 30    // degrees
+      },
+      fovLimits: {
+        min: 30,
+        max: 120
+      },
+      autorotate: {
+        speed: 0.5  // rpm
       }
     };
     
     // ==========================================
     // STATE
     // ==========================================
+    const state = {
+      viewer: null,
+      markersPlugin: null,
+      autorotatePlugin: null,
+      isAutorotating: false,
+      scenesVisible: false,
+      settingsVisible: false,
+      currentScene: 'scene-1',
+      tilesLoaded: 0,
+      fps: 0,
+      lastFrameTime: performance.now(),
+      frameCount: 0
+    };
+    
+    // ==========================================
+    // DOM ELEMENTS
+    // ==========================================
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+    
+    const elements = {
+      loadingOverlay: $('#loading-overlay'),
+      loadingProgress: $('#loading-progress'),
+      viewer: $('#viewer'),
+      compassNeedle: $('#compass-needle'),
+      compass: $('#compass'),
+      scenesPanel: $('#scenes-panel'),
+      settingsPanel: $('#settings-panel'),
+      toast: $('#toast'),
+      toastMessage: $('#toast-message'),
+      keyboardHint: $('#keyboard-hint'),
+      // Stats
+      tilesLoaded: $('#tiles-loaded'),
+      fpsDisplay: $('#fps-display'),
+      zoomLevel: $('#zoom-level'),
+      loadTime: $('#load-time'),
+      // Settings
+      toggleAutorotate: $('#toggle-autorotate'),
+      sliderSpeed: $('#slider-speed'),
+      speedValue: $('#speed-value'),
+      currentYaw: $('#current-yaw'),
+      currentPitch: $('#current-pitch'),
+      currentZoom: $('#current-zoom'),
+      // Buttons
+      btnSettings: $('#btn-settings'),
+      btnShare: $('#btn-share'),
+      btnFullscreen: $('#btn-fullscreen'),
+      btnZoomIn: $('#btn-zoom-in'),
+      btnZoomOut: $('#btn-zoom-out'),
+      btnAutorotate: $('#btn-autorotate'),
+      btnScenes: $('#btn-scenes'),
+      settingsClose: $('#settings-close'),
+      iconFullscreen: $('#icon-fullscreen'),
+      iconFullscreenExit: $('#icon-fullscreen-exit')
+    };
+    
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
     const startTime = performance.now();
-    let tilesLoaded = 0;
-    let viewer = null;
-    let markersPlugin = null;
-    let autorotatePlugin = null;
-    let isAutorotating = false;
     
-    // ==========================================
-    // DOM
-    // ==========================================
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const compassNeedle = document.getElementById('compass-needle');
-    const tilesLoadedEl = document.getElementById('tiles-loaded');
-    const zoomLevelEl = document.getElementById('zoom-level');
-    const loadTimeEl = document.getElementById('load-time');
+    function initViewer() {
+      state.viewer = new Viewer({
+        container: elements.viewer,
+        adapter: EquirectangularTilesAdapter,
+        panorama: {
+          width: CONFIG.tiles.width,
+          cols: CONFIG.tiles.cols,
+          rows: CONFIG.tiles.rows,
+          baseUrl: CONFIG.tiles.baseUrl,
+          tileUrl: CONFIG.tiles.tileUrl
+        },
+        defaultYaw: CONFIG.initialView.yaw,
+        defaultPitch: CONFIG.initialView.pitch,
+        defaultZoomLvl: 50,
+        minFov: CONFIG.fovLimits.min,
+        maxFov: CONFIG.fovLimits.max,
+        navbar: false,
+        loadingTxt: '',
+        plugins: [
+          [MarkersPlugin, { markers: [] }],
+          [AutorotatePlugin, {
+            autorotateSpeed: `${CONFIG.autorotate.speed}rpm`,
+            autostartDelay: null,
+            autostartOnIdle: false
+          }]
+        ]
+      });
+      
+      // Event listeners
+      state.viewer.addEventListener('ready', onViewerReady);
+      state.viewer.addEventListener('position-updated', onPositionUpdate);
+      state.viewer.addEventListener('zoom-updated', onZoomUpdate);
+    }
     
-    // ==========================================
-    // INIT VIEWER WITH TILES ADAPTER
-    // ==========================================
-    viewer = new Viewer({
-      container: document.getElementById('viewer'),
-      adapter: [EquirectangularTilesAdapter, {
-        baseUrl: TILES_CONFIG.baseUrl,
-        width: TILES_CONFIG.width,
-        cols: TILES_CONFIG.cols,
-        rows: TILES_CONFIG.rows,
-        tileUrl: TILES_CONFIG.tileUrl,
-      }],
-      defaultYaw: 0,
-      defaultPitch: 0,
-      defaultZoomLvl: 50,
-      minFov: 30,
-      maxFov: 120,
-      navbar: false,
-      loadingTxt: '',
-      plugins: [
-        [MarkersPlugin, { markers: [] }],
-        [AutorotatePlugin, {
-          autorotateSpeed: '0.5rpm',
-          autostartDelay: null,
-          autostartOnIdle: false
-        }]
-      ]
-    });
-    
-    // ==========================================
-    // EVENT HANDLERS
-    // ==========================================
-    viewer.addEventListener('ready', () => {
-      const loadTime = Math.round(performance.now() - startTime);
-      loadTimeEl.textContent = `${loadTime}ms`;
+    function onViewerReady() {
+      const loadTimeMs = Math.round(performance.now() - startTime);
+      elements.loadTime.textContent = `${loadTimeMs}ms`;
       
       // Get plugins
-      markersPlugin = viewer.getPlugin(MarkersPlugin);
-      autorotatePlugin = viewer.getPlugin(AutorotatePlugin);
+      state.markersPlugin = state.viewer.getPlugin(MarkersPlugin);
+      state.autorotatePlugin = state.viewer.getPlugin(AutorotatePlugin);
       
       // Add demo markers
       addDemoMarkers();
       
-      // Fade out loading overlay
-      loadingOverlay.classList.add('loaded');
-      setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+      // Hide loading overlay
+      elements.loadingOverlay.classList.add('loaded');
+      setTimeout(() => elements.loadingOverlay.classList.add('hidden'), 600);
       
-      console.log('Viewer ready with tile streaming in', loadTime, 'ms');
-    });
+      // Show keyboard hint briefly
+      showKeyboardHint();
+      
+      // Start FPS counter
+      startFPSCounter();
+      
+      // Initial UI update
+      updateUI();
+      
+      console.log(`Viewer ready in ${loadTimeMs}ms`);
+    }
     
-    viewer.addEventListener('position-updated', () => {
-      updateCompass();
-    });
+    function onPositionUpdate({ position }) {
+      // Enforce pitch limits
+      const pitchDeg = (position.pitch * 180) / Math.PI;
+      if (pitchDeg < CONFIG.pitchLimits.min || pitchDeg > CONFIG.pitchLimits.max) {
+        const clampedPitch = Math.max(CONFIG.pitchLimits.min, Math.min(CONFIG.pitchLimits.max, pitchDeg));
+        state.viewer.rotate({
+          yaw: position.yaw,
+          pitch: (clampedPitch * Math.PI) / 180
+        });
+        return;
+      }
+      
+      updateUI();
+    }
     
-    viewer.addEventListener('zoom-updated', ({ zoomLevel }) => {
-      zoomLevelEl.textContent = `${Math.round(zoomLevel)}%`;
-    });
+    function onZoomUpdate({ zoomLevel }) {
+      elements.zoomLevel.textContent = `${Math.round(zoomLevel)}%`;
+      elements.currentZoom.textContent = `${Math.round(zoomLevel)}%`;
+    }
     
-    // Track tile loading (approximate via network)
+    // ==========================================
+    // UI UPDATES
+    // ==========================================
+    function updateUI() {
+      if (!state.viewer) return;
+      
+      const position = state.viewer.getPosition();
+      const yawDeg = Math.round((position.yaw * 180) / Math.PI);
+      const pitchDeg = Math.round((position.pitch * 180) / Math.PI);
+      
+      // Compass
+      elements.compassNeedle.style.transform = `rotate(${-yawDeg}deg)`;
+      
+      // Settings values
+      elements.currentYaw.textContent = `${yawDeg}°`;
+      elements.currentPitch.textContent = `${pitchDeg}°`;
+    }
+    
+    function showToast(message) {
+      elements.toastMessage.textContent = message;
+      elements.toast.classList.add('visible');
+      setTimeout(() => elements.toast.classList.remove('visible'), 2500);
+    }
+    
+    function showKeyboardHint() {
+      elements.keyboardHint.classList.add('visible');
+      setTimeout(() => elements.keyboardHint.classList.remove('visible'), 4000);
+    }
+    
+    function togglePanel(panel, button, stateProp) {
+      state[stateProp] = !state[stateProp];
+      panel.classList.toggle('visible', state[stateProp]);
+      button.classList.toggle('active', state[stateProp]);
+      button.setAttribute('aria-expanded', state[stateProp]);
+      panel.setAttribute('aria-hidden', !state[stateProp]);
+      
+      // Close other panels
+      if (stateProp === 'scenesVisible' && state.settingsVisible) {
+        state.settingsVisible = false;
+        elements.settingsPanel.classList.remove('visible');
+        elements.btnSettings.classList.remove('active');
+        elements.btnSettings.setAttribute('aria-expanded', 'false');
+        elements.settingsPanel.setAttribute('aria-hidden', 'true');
+      }
+      if (stateProp === 'settingsVisible' && state.scenesVisible) {
+        state.scenesVisible = false;
+        elements.scenesPanel.classList.remove('visible');
+        elements.btnScenes.classList.remove('active');
+        elements.btnScenes.setAttribute('aria-expanded', 'false');
+      }
+    }
+    
+    function closeAllPanels() {
+      if (state.settingsVisible) {
+        togglePanel(elements.settingsPanel, elements.btnSettings, 'settingsVisible');
+      }
+      if (state.scenesVisible) {
+        togglePanel(elements.scenesPanel, elements.btnScenes, 'scenesVisible');
+      }
+    }
+    
+    function updateFullscreenIcon() {
+      const isFullscreen = !!document.fullscreenElement;
+      elements.iconFullscreen.style.display = isFullscreen ? 'none' : 'block';
+      elements.iconFullscreenExit.style.display = isFullscreen ? 'block' : 'none';
+    }
+    
+    // ==========================================
+    // FPS COUNTER
+    // ==========================================
+    function startFPSCounter() {
+      function updateFPS() {
+        state.frameCount++;
+        const now = performance.now();
+        
+        if (now - state.lastFrameTime >= 1000) {
+          state.fps = Math.round(state.frameCount * 1000 / (now - state.lastFrameTime));
+          elements.fpsDisplay.textContent = state.fps;
+          state.frameCount = 0;
+          state.lastFrameTime = now;
+        }
+        
+        requestAnimationFrame(updateFPS);
+      }
+      updateFPS();
+    }
+    
+    // ==========================================
+    // TILE LOADING TRACKER
+    // ==========================================
     const originalFetch = window.fetch;
     window.fetch = function(...args) {
       const url = args[0];
       if (typeof url === 'string' && url.includes('/tile-')) {
-        tilesLoaded++;
-        tilesLoadedEl.textContent = tilesLoaded;
+        state.tilesLoaded++;
+        elements.tilesLoaded.textContent = state.tilesLoaded;
       }
       return originalFetch.apply(this, args);
     };
     
     // ==========================================
-    // UI FUNCTIONS
+    // MARKERS
     // ==========================================
-    function updateCompass() {
-      const position = viewer.getPosition();
-      const yawDeg = (position.yaw * 180) / Math.PI;
-      compassNeedle.style.transform = `rotate(${-yawDeg}deg)`;
-    }
-    
     function addDemoMarkers() {
-      if (!markersPlugin) return;
+      if (!state.markersPlugin) return;
       
-      markersPlugin.addMarker({
+      state.markersPlugin.addMarker({
         id: 'poi-1',
         position: { yaw: 0.8, pitch: 0 },
-        html: '<div class="marker-poi">i</div>',
+        html: '<div class="marker-poi" role="button" aria-label="Info-Punkt: Willkommen">i</div>',
         anchor: 'center center',
-        tooltip: { content: 'Info-Punkt', position: 'top center', trigger: 'hover' },
-        data: { type: 'info' }
+        tooltip: {
+          content: `<div class="tooltip-content"><h4>Willkommen</h4><p>Dies ist ein Beispiel für einen Point of Interest.</p></div>`,
+          position: 'top center',
+          trigger: 'hover'
+        },
+        data: { type: 'info', title: 'Willkommen' }
       });
       
-      markersPlugin.addMarker({
+      state.markersPlugin.addMarker({
         id: 'nav-1',
         position: { yaw: -1.5, pitch: -0.1 },
-        html: '<div class="marker-nav">→</div>',
+        html: '<div class="marker-nav" role="button" aria-label="Navigation: Nächster Raum">→</div>',
         anchor: 'center center',
-        tooltip: { content: 'Nächster Raum', position: 'top center', trigger: 'hover' },
+        tooltip: {
+          content: 'Nächster Raum',
+          position: 'top center',
+          trigger: 'hover'
+        },
         data: { type: 'nav', target: 'scene-2' }
+      });
+      
+      state.markersPlugin.addEventListener('select-marker', ({ marker }) => {
+        if (marker.config.data?.type === 'nav') {
+          showToast(`Wechsle zu: ${marker.config.data.target}`);
+        }
       });
     }
     
     // ==========================================
-    // CONTROLS
+    // EVENT HANDLERS
     // ==========================================
-    document.getElementById('btn-fullscreen').addEventListener('click', () => {
-      viewer.toggleFullscreen();
+    
+    // Fullscreen
+    elements.btnFullscreen.addEventListener('click', () => {
+      state.viewer.toggleFullscreen();
+    });
+    document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    
+    // Zoom
+    elements.btnZoomIn.addEventListener('click', () => {
+      const current = state.viewer.getZoomLevel();
+      state.viewer.zoom(Math.min(100, current + 10));
     });
     
-    document.getElementById('btn-zoom-in').addEventListener('click', () => {
-      const current = viewer.getZoomLevel();
-      viewer.zoom(Math.min(100, current + 10));
+    elements.btnZoomOut.addEventListener('click', () => {
+      const current = state.viewer.getZoomLevel();
+      state.viewer.zoom(Math.max(0, current - 10));
     });
     
-    document.getElementById('btn-zoom-out').addEventListener('click', () => {
-      const current = viewer.getZoomLevel();
-      viewer.zoom(Math.max(0, current - 10));
-    });
+    // Autorotate
+    function toggleAutorotate() {
+      if (!state.autorotatePlugin) return;
+      
+      state.autorotatePlugin.toggle();
+      state.isAutorotating = !state.isAutorotating;
+      
+      elements.btnAutorotate.classList.toggle('active', state.isAutorotating);
+      elements.btnAutorotate.setAttribute('aria-pressed', state.isAutorotating);
+      elements.toggleAutorotate.classList.toggle('active', state.isAutorotating);
+      elements.toggleAutorotate.setAttribute('aria-checked', state.isAutorotating);
+    }
     
-    document.getElementById('btn-autorotate').addEventListener('click', function() {
-      if (autorotatePlugin) {
-        autorotatePlugin.toggle();
-        isAutorotating = !isAutorotating;
-        this.classList.toggle('active', isAutorotating);
+    elements.btnAutorotate.addEventListener('click', toggleAutorotate);
+    elements.toggleAutorotate.addEventListener('click', toggleAutorotate);
+    elements.toggleAutorotate.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleAutorotate();
       }
     });
     
-    // Keyboard
+    // Speed slider
+    elements.sliderSpeed.addEventListener('input', (e) => {
+      const speed = parseInt(e.target.value);
+      elements.speedValue.textContent = speed;
+      if (state.autorotatePlugin) {
+        state.autorotatePlugin.setOptions({ autorotateSpeed: `${speed / 10}rpm` });
+      }
+    });
+    
+    // Panels
+    elements.btnSettings.addEventListener('click', () => {
+      togglePanel(elements.settingsPanel, elements.btnSettings, 'settingsVisible');
+    });
+    
+    elements.btnScenes.addEventListener('click', () => {
+      togglePanel(elements.scenesPanel, elements.btnScenes, 'scenesVisible');
+    });
+    
+    elements.settingsClose.addEventListener('click', () => {
+      togglePanel(elements.settingsPanel, elements.btnSettings, 'settingsVisible');
+    });
+    
+    // Share
+    elements.btnShare.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('Link in Zwischenablage kopiert!');
+      } catch {
+        showToast('Link konnte nicht kopiert werden');
+      }
+    });
+    
+    // Compass click = reset view
+    elements.compass.addEventListener('click', () => {
+      state.viewer.rotate({ yaw: 0, pitch: 0 });
+      showToast('Ansicht zurückgesetzt');
+    });
+    
+    // Scene selection
+    $$('.scene-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        const sceneId = thumb.dataset.scene;
+        $$('.scene-thumb').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+          t.tabIndex = -1;
+        });
+        thumb.classList.add('active');
+        thumb.setAttribute('aria-selected', 'true');
+        thumb.tabIndex = 0;
+        state.currentScene = sceneId;
+        showToast(`Wechsle zu: ${sceneId}`);
+      });
+      
+      thumb.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          thumb.click();
+        }
+      });
+    });
+    
+    // Close panels on outside click
+    document.addEventListener('click', (e) => {
+      if (state.settingsVisible &&
+          !elements.settingsPanel.contains(e.target) &&
+          !elements.btnSettings.contains(e.target)) {
+        togglePanel(elements.settingsPanel, elements.btnSettings, 'settingsVisible');
+      }
+      
+      if (state.scenesVisible &&
+          !elements.scenesPanel.contains(e.target) &&
+          !elements.btnScenes.contains(e.target)) {
+        togglePanel(elements.scenesPanel, elements.btnScenes, 'scenesVisible');
+      }
+    });
+    
+    // ==========================================
+    // KEYBOARD SHORTCUTS
+    // ==========================================
     document.addEventListener('keydown', (e) => {
+      // Don't trigger if typing in input
+      if (e.target.tagName === 'INPUT') return;
+      
       switch (e.key) {
-        case 'f': case 'F': viewer.toggleFullscreen(); break;
-        case '+': case '=': document.getElementById('btn-zoom-in').click(); break;
-        case '-': document.getElementById('btn-zoom-out').click(); break;
-        case 'r': case 'R': document.getElementById('btn-autorotate').click(); break;
+        case 'Escape':
+          closeAllPanels();
+          break;
+        case 'f':
+        case 'F':
+          state.viewer.toggleFullscreen();
+          break;
+        case 'r':
+        case 'R':
+          toggleAutorotate();
+          break;
+        case '+':
+        case '=':
+          elements.btnZoomIn.click();
+          break;
+        case '-':
+          elements.btnZoomOut.click();
+          break;
+        case 'ArrowLeft':
+          if (!state.scenesVisible) {
+            // Navigate view left
+            const pos = state.viewer.getPosition();
+            state.viewer.rotate({ yaw: pos.yaw + 0.2, pitch: pos.pitch });
+          }
+          break;
+        case 'ArrowRight':
+          if (!state.scenesVisible) {
+            // Navigate view right
+            const pos = state.viewer.getPosition();
+            state.viewer.rotate({ yaw: pos.yaw - 0.2, pitch: pos.pitch });
+          }
+          break;
+        case 'ArrowUp':
+          // Navigate view up
+          const posUp = state.viewer.getPosition();
+          state.viewer.rotate({ yaw: posUp.yaw, pitch: posUp.pitch + 0.1 });
+          break;
+        case 'ArrowDown':
+          // Navigate view down
+          const posDown = state.viewer.getPosition();
+          state.viewer.rotate({ yaw: posDown.yaw, pitch: posDown.pitch - 0.1 });
+          break;
+        case 's':
+        case 'S':
+          togglePanel(elements.settingsPanel, elements.btnSettings, 'settingsVisible');
+          break;
       }
     });
+    
+    // ==========================================
+    // INIT
+    // ==========================================
+    initViewer();
   </script>
 </body>
 </html>
