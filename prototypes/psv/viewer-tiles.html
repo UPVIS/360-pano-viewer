@@ -64,6 +64,402 @@
     }
     
     /* ==========================================
+       MODE-SWITCHING (Editor/Viewer)
+    ========================================== */
+    .editor-only { display: none !important; }
+    .viewer-only { display: flex; }
+    
+    body.mode-editor .editor-only { display: flex !important; }
+    body.mode-editor .viewer-only { display: none !important; }
+    
+    /* Hide drag/menu in viewer mode */
+    body.mode-viewer .scene-thumb-drag,
+    body.mode-viewer .scene-thumb-menu { display: none !important; }
+    
+    /* Placement cursor */
+    body.placement-active #viewer { cursor: crosshair !important; }
+    body.placement-active #viewer canvas { cursor: crosshair !important; }
+    
+    /* ==========================================
+       EDITOR TOOLBAR
+    ========================================== */
+    #editor-toolbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 150;
+    }
+    
+    .toolbar-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .toolbar-btn:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .toolbar-btn.active {
+      background: var(--accent-color);
+      color: var(--bg-primary);
+    }
+    
+    .toolbar-btn.mode-toggle {
+      width: auto;
+      padding: 0 16px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+      margin: 0 6px;
+    }
+    
+    /* ==========================================
+       PROPERTIES PANEL
+    ========================================== */
+    #properties-panel {
+      position: fixed;
+      top: 80px;
+      right: 16px;
+      bottom: 100px;
+      width: 320px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 140;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateX(20px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    
+    #properties-panel.visible {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    
+    .props-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .props-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .props-close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .props-close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+    
+    .props-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    
+    .props-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .props-section.hidden {
+      display: none;
+    }
+    
+    .props-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    
+    .props-label:first-child {
+      margin-top: 0;
+    }
+    
+    .props-input,
+    .props-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: var(--transition-fast);
+    }
+    
+    .props-input:focus,
+    .props-select:focus {
+      border-color: var(--accent-color);
+      outline: none;
+    }
+    
+    .props-slider {
+      width: 100%;
+      accent-color: var(--accent-color);
+    }
+    
+    .props-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .props-row span:first-child {
+      width: 40px;
+    }
+    
+    .props-row span:last-child {
+      width: 45px;
+      text-align: right;
+      color: var(--text-primary);
+    }
+    
+    .props-btn {
+      padding: 10px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .props-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .props-btn.primary {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: var(--bg-primary);
+    }
+    
+    .props-btn.primary:hover {
+      background: var(--accent-hover);
+    }
+    
+    .props-btn.danger {
+      background: transparent;
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    
+    .props-btn.danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+    
+    .props-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .props-actions .props-btn {
+      flex: 1;
+    }
+    
+    .props-editor {
+      min-height: 150px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .props-editor:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+    
+    .props-editor p {
+      margin: 0 0 8px 0;
+    }
+    
+    /* ==========================================
+       POI MARKERS
+    ========================================== */
+    .poi-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    .poi-marker:hover {
+      transform: scale(1.1);
+    }
+    
+    .poi-marker.editable {
+      cursor: grab;
+    }
+    
+    .poi-marker.editable:active {
+      cursor: grabbing;
+    }
+    
+    .poi-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-color);
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: var(--transition-fast);
+    }
+    
+    .poi-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--bg-primary);
+    }
+    
+    .poi-label {
+      margin-top: 4px;
+      padding: 2px 8px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: var(--transition-fast);
+    }
+    
+    .poi-marker:hover .poi-label {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* ==========================================
+       NAV ARROW MARKERS
+    ========================================== */
+    .nav-arrow-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    .nav-arrow-marker:hover {
+      transform: scale(1.15) translateY(-5px);
+    }
+    
+    .nav-arrow-marker.editable {
+      cursor: grab;
+    }
+    
+    .floor-arrow {
+      width: 48px;
+      height: 40px;
+      color: var(--accent-color);
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+      transform: perspective(100px) rotateX(45deg);
+      transition: var(--transition-fast);
+    }
+    
+    .nav-arrow-marker:hover .floor-arrow {
+      color: var(--accent-hover);
+    }
+    
+    .floor-arrow svg {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .nav-label {
+      margin-top: 8px;
+      padding: 4px 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(8px);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: var(--transition-fast);
+    }
+    
+    .nav-arrow-marker:hover .nav-label {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* ==========================================
        VIEWER CONTAINER
     ========================================== */
     #viewer-container {
@@ -1117,6 +1513,99 @@
     <!-- Viewer -->
     <div id="viewer" tabindex="0" aria-label="Interaktives 360-Grad Panorama"></div>
     
+    <!-- Editor Toolbar (Editor Mode only) -->
+    <div id="editor-toolbar" class="editor-only" role="toolbar" aria-label="Editor Werkzeuge">
+      <button id="tool-poi" class="toolbar-btn" title="POI hinzufügen" aria-label="Point of Interest hinzufügen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+      </button>
+      <button id="tool-nav" class="toolbar-btn" title="Navigationspfeil hinzufügen" aria-label="Navigationspfeil hinzufügen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+      <button id="tool-view" class="toolbar-btn" title="Aktuelle Ansicht als Start setzen" aria-label="Startansicht setzen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+        </svg>
+      </button>
+      <span class="toolbar-divider"></span>
+      <button id="btn-mode-toggle" class="toolbar-btn mode-toggle" title="Modus wechseln">
+        <span>Viewer</span>
+      </button>
+    </div>
+    
+    <!-- Properties Panel (Editor Mode only) -->
+    <div id="properties-panel" class="editor-only" role="complementary" aria-label="Eigenschaften">
+      <div class="props-header">
+        <h3 id="props-title">Panorama</h3>
+        <button id="props-close" class="props-close-btn" aria-label="Panel schließen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="props-content" id="props-content">
+        <!-- Dynamic content based on selection -->
+        <div class="props-section" id="props-panorama">
+          <label class="props-label">Panorama Name</label>
+          <input type="text" id="pano-name" class="props-input" placeholder="Name eingeben">
+          
+          <label class="props-label">Startansicht</label>
+          <button id="btn-set-view" class="props-btn">Aktuelle Ansicht speichern</button>
+          
+          <label class="props-label">Pitch-Limits</label>
+          <div class="props-row">
+            <span>Min:</span>
+            <input type="range" id="props-pitch-min" min="-90" max="0" value="-30" class="props-slider">
+            <span id="props-pitch-min-val">-30°</span>
+          </div>
+          <div class="props-row">
+            <span>Max:</span>
+            <input type="range" id="props-pitch-max" min="0" max="90" value="30" class="props-slider">
+            <span id="props-pitch-max-val">30°</span>
+          </div>
+        </div>
+        
+        <div class="props-section hidden" id="props-poi">
+          <label class="props-label">POI Titel</label>
+          <input type="text" id="poi-title" class="props-input" placeholder="Titel eingeben">
+          
+          <label class="props-label">Icon</label>
+          <select id="poi-icon" class="props-select">
+            <option value="info">Info</option>
+            <option value="image">Bild</option>
+            <option value="video">Video</option>
+            <option value="link">Link</option>
+          </select>
+          
+          <label class="props-label">Inhalt</label>
+          <div id="poi-editor" class="props-editor" contenteditable="true"></div>
+          
+          <div class="props-actions">
+            <button id="poi-save" class="props-btn primary">Speichern</button>
+            <button id="poi-delete" class="props-btn danger">Löschen</button>
+          </div>
+        </div>
+        
+        <div class="props-section hidden" id="props-nav">
+          <label class="props-label">Ziel-Panorama</label>
+          <select id="nav-target" class="props-select"></select>
+          
+          <label class="props-label">Label</label>
+          <input type="text" id="nav-label" class="props-input" placeholder="z.B. 'Zum Wohnzimmer'">
+          
+          <div class="props-actions">
+            <button id="nav-save" class="props-btn primary">Speichern</button>
+            <button id="nav-delete" class="props-btn danger">Löschen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- Stats Overlay (Nerd Stats) -->
     <div class="stats-overlay" id="stats-overlay" aria-hidden="true">
       <div class="stats-title">Nerd Stats</div>
@@ -1654,7 +2143,12 @@
       frameCount: 0,
       showStats: CONFIG.showStats,
       gpuInfo: null,
-      preloadedScenes: new Set() // Scenes that have been preloaded
+      preloadedScenes: new Set(), // Scenes that have been preloaded
+      // Editor Mode
+      mode: 'viewer',             // 'viewer' | 'editor'
+      selectedElement: null,      // { type: 'poi'|'nav', id: string }
+      placementMode: null,        // 'poi' | 'nav' | null
+      propsVisible: false         // Properties panel visibility
     };
     
     // ==========================================
@@ -1714,7 +2208,35 @@
       btnScenes: $('#btn-scenes'),
       settingsClose: $('#settings-close'),
       iconFullscreen: $('#icon-fullscreen'),
-      iconFullscreenExit: $('#icon-fullscreen-exit')
+      iconFullscreenExit: $('#icon-fullscreen-exit'),
+      // Editor
+      editorToolbar: $('#editor-toolbar'),
+      toolPoi: $('#tool-poi'),
+      toolNav: $('#tool-nav'),
+      toolView: $('#tool-view'),
+      btnModeToggle: $('#btn-mode-toggle'),
+      propsPanel: $('#properties-panel'),
+      propsTitle: $('#props-title'),
+      propsClose: $('#props-close'),
+      propsContent: $('#props-content'),
+      propsPanorama: $('#props-panorama'),
+      propsPoi: $('#props-poi'),
+      propsNav: $('#props-nav'),
+      panoName: $('#pano-name'),
+      btnSetView: $('#btn-set-view'),
+      propsPitchMin: $('#props-pitch-min'),
+      propsPitchMax: $('#props-pitch-max'),
+      propsPitchMinVal: $('#props-pitch-min-val'),
+      propsPitchMaxVal: $('#props-pitch-max-val'),
+      poiTitle: $('#poi-title'),
+      poiIcon: $('#poi-icon'),
+      poiEditor: $('#poi-editor'),
+      poiSave: $('#poi-save'),
+      poiDelete: $('#poi-delete'),
+      navTarget: $('#nav-target'),
+      navLabel: $('#nav-label'),
+      navSave: $('#nav-save'),
+      navDelete: $('#nav-delete')
     };
     
     // ==========================================
@@ -1874,6 +2396,384 @@
       elements.toggleStats.classList.toggle('active', state.showStats);
       elements.toggleStats.setAttribute('aria-checked', state.showStats);
       elements.statsOverlay.classList.toggle('hidden', !state.showStats);
+      
+      // Initialize mode from URL parameter
+      initializeMode();
+    }
+    
+    // ==========================================
+    // MODE SWITCHING (Editor/Viewer)
+    // ==========================================
+    
+    function initializeMode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const modeParam = urlParams.get('mode');
+      if (modeParam === 'editor') {
+        setMode('editor');
+      } else {
+        setMode('viewer');
+      }
+    }
+    
+    function setMode(mode) {
+      state.mode = mode;
+      document.body.classList.remove('mode-viewer', 'mode-editor');
+      document.body.classList.add(`mode-${mode}`);
+      
+      // Update URL without reload
+      const url = new URL(window.location);
+      if (mode === 'editor') {
+        url.searchParams.set('mode', 'editor');
+      } else {
+        url.searchParams.delete('mode');
+      }
+      window.history.replaceState({}, '', url);
+      
+      // Update toggle button text
+      const modeToggle = $('#btn-mode-toggle');
+      if (modeToggle) {
+        modeToggle.querySelector('span').textContent = mode === 'editor' ? 'Viewer' : 'Editor';
+      }
+      
+      // Clear selection when switching to viewer
+      if (mode === 'viewer') {
+        state.selectedElement = null;
+        state.placementMode = null;
+        document.body.classList.remove('placement-active');
+        hidePropertiesPanel();
+      }
+      
+      // Re-render scenes panel to show/hide edit controls
+      renderScenesPanel();
+      
+      console.log(`[Mode] Switched to ${mode} mode`);
+    }
+    
+    function toggleMode() {
+      setMode(state.mode === 'editor' ? 'viewer' : 'editor');
+    }
+    
+    function setPlacementMode(type) {
+      state.placementMode = type;
+      if (type) {
+        document.body.classList.add('placement-active');
+        showToast(`Klicke auf die gewünschte Position für ${type === 'poi' ? 'den POI' : 'den Navigationspfeil'}`);
+      } else {
+        document.body.classList.remove('placement-active');
+      }
+    }
+    
+    function cancelPlacementMode() {
+      state.placementMode = null;
+      document.body.classList.remove('placement-active');
+    }
+    
+    function showPropertiesPanel(type = 'panorama') {
+      state.propsVisible = true;
+      const panel = $('#properties-panel');
+      if (panel) panel.classList.add('visible');
+      
+      // Show appropriate section
+      $('#props-panorama')?.classList.toggle('hidden', type !== 'panorama');
+      $('#props-poi')?.classList.toggle('hidden', type !== 'poi');
+      $('#props-nav')?.classList.toggle('hidden', type !== 'nav');
+      
+      // Update title
+      const titles = { panorama: 'Panorama', poi: 'Point of Interest', nav: 'Navigation' };
+      $('#props-title').textContent = titles[type] || 'Eigenschaften';
+      
+      // Update content based on type
+      if (type === 'panorama') {
+        updatePanoramaProperties();
+      } else if (type === 'poi' && state.selectedElement) {
+        updatePoiProperties();
+      } else if (type === 'nav' && state.selectedElement) {
+        updateNavProperties();
+      }
+    }
+    
+    function hidePropertiesPanel() {
+      state.propsVisible = false;
+      state.selectedElement = null;
+      const panel = $('#properties-panel');
+      if (panel) panel.classList.remove('visible');
+    }
+    
+    function updatePanoramaProperties() {
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return;
+      
+      elements.panoName.value = pano.name || '';
+      elements.propsPitchMin.value = pano.pitchLimits?.min ?? -30;
+      elements.propsPitchMax.value = pano.pitchLimits?.max ?? 30;
+      elements.propsPitchMinVal.textContent = `${pano.pitchLimits?.min ?? -30}°`;
+      elements.propsPitchMaxVal.textContent = `${pano.pitchLimits?.max ?? 30}°`;
+    }
+    
+    function updatePoiProperties() {
+      if (!state.selectedElement || state.selectedElement.type !== 'poi') return;
+      
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      const poi = pano?.pois?.find(p => p.id === state.selectedElement.id);
+      if (!poi) return;
+      
+      elements.poiTitle.value = poi.title || '';
+      elements.poiIcon.value = poi.icon || 'info';
+      
+      // Tiptap editor would be updated here
+      if (elements.poiEditor._tiptap) {
+        elements.poiEditor._tiptap.commands.setContent(poi.description || '');
+      } else {
+        elements.poiEditor.innerHTML = poi.description || '<p>Inhalt eingeben...</p>';
+      }
+    }
+    
+    function updateNavProperties() {
+      if (!state.selectedElement || state.selectedElement.type !== 'nav') return;
+      
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      const nav = pano?.navArrows?.find(n => n.id === state.selectedElement.id);
+      if (!nav) return;
+      
+      elements.navLabel.value = nav.label || '';
+      
+      // Populate target dropdown
+      elements.navTarget.innerHTML = '';
+      project?.panoramas.forEach(p => {
+        if (p.id !== state.currentScene) {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          opt.selected = p.id === nav.targetScene;
+          elements.navTarget.appendChild(opt);
+        }
+      });
+    }
+    
+    function selectElement(type, id) {
+      state.selectedElement = { type, id };
+      showPropertiesPanel(type);
+    }
+    
+    // ==========================================
+    // POI MANAGEMENT
+    // ==========================================
+    
+    function generateId(prefix) {
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    function addPoi(yaw, pitch) {
+      if (!project) return null;
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return null;
+      
+      if (!pano.pois) pano.pois = [];
+      
+      const newPoi = {
+        id: generateId('poi'),
+        position: { yaw, pitch },
+        title: 'Neuer POI',
+        description: '',
+        icon: 'info'
+      };
+      
+      pano.pois.push(newPoi);
+      
+      // Add marker
+      addPoiMarker(newPoi);
+      
+      // Select the new POI
+      selectElement('poi', newPoi.id);
+      
+      console.log('[Editor] POI added:', newPoi);
+      showToast('POI hinzugefügt');
+      
+      return newPoi;
+    }
+    
+    function addPoiMarker(poi) {
+      if (!state.markersPlugin) return;
+      
+      const isEditor = state.mode === 'editor';
+      
+      // Remove existing marker if any
+      try {
+        state.markersPlugin.removeMarker(poi.id);
+      } catch {}
+      
+      state.markersPlugin.addMarker({
+        id: poi.id,
+        position: poi.position,
+        html: `<div class="poi-marker ${isEditor ? 'editable' : ''}" data-poi-id="${poi.id}">
+          <div class="poi-icon poi-icon-${poi.icon || 'info'}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="10"/>
+              <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">i</text>
+            </svg>
+          </div>
+          <span class="poi-label">${poi.title || 'POI'}</span>
+        </div>`,
+        anchor: 'center center',
+        data: { type: 'poi', ...poi }
+      });
+    }
+    
+    function deletePoi(poiId) {
+      if (!project) return;
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano || !pano.pois) return;
+      
+      const index = pano.pois.findIndex(p => p.id === poiId);
+      if (index === -1) return;
+      
+      pano.pois.splice(index, 1);
+      
+      // Remove marker
+      try {
+        state.markersPlugin.removeMarker(poiId);
+      } catch {}
+      
+      hidePropertiesPanel();
+      showToast('POI gelöscht');
+    }
+    
+    function updatePoiFromPanel() {
+      if (!state.selectedElement || state.selectedElement.type !== 'poi') return;
+      
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      const poi = pano?.pois?.find(p => p.id === state.selectedElement.id);
+      if (!poi) return;
+      
+      poi.title = elements.poiTitle.value;
+      poi.icon = elements.poiIcon.value;
+      poi.description = elements.poiEditor.innerHTML;
+      
+      // Update marker
+      addPoiMarker(poi);
+      
+      showToast('POI gespeichert');
+    }
+    
+    function refreshAllMarkers() {
+      if (!state.markersPlugin || !project) return;
+      
+      // Clear all markers
+      state.markersPlugin.clearMarkers();
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return;
+      
+      // Add POI markers
+      if (pano.pois) {
+        pano.pois.forEach(poi => addPoiMarker(poi));
+      }
+      
+      // Add nav arrow markers
+      if (pano.navArrows) {
+        pano.navArrows.forEach(nav => addNavArrowMarker(nav));
+      }
+    }
+    
+    // ==========================================
+    // NAVIGATION ARROW MANAGEMENT
+    // ==========================================
+    
+    function addNavArrow(yaw, pitch) {
+      if (!project) return null;
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return null;
+      
+      if (!pano.navArrows) pano.navArrows = [];
+      
+      // Find first other panorama as default target
+      const otherPano = project.panoramas.find(p => p.id !== state.currentScene);
+      
+      const newNav = {
+        id: generateId('nav'),
+        position: { yaw, pitch },
+        targetScene: otherPano?.id || '',
+        label: otherPano?.name || 'Ziel wählen'
+      };
+      
+      pano.navArrows.push(newNav);
+      
+      // Add marker
+      addNavArrowMarker(newNav);
+      
+      // Select the new nav arrow
+      selectElement('nav', newNav.id);
+      
+      console.log('[Editor] Nav arrow added:', newNav);
+      showToast('Navigationspfeil hinzugefügt');
+      
+      return newNav;
+    }
+    
+    function addNavArrowMarker(nav) {
+      if (!state.markersPlugin) return;
+      
+      const isEditor = state.mode === 'editor';
+      const targetPano = project?.panoramas.find(p => p.id === nav.targetScene);
+      
+      // Remove existing marker if any
+      try {
+        state.markersPlugin.removeMarker(nav.id);
+      } catch {}
+      
+      state.markersPlugin.addMarker({
+        id: nav.id,
+        position: nav.position,
+        html: `<div class="nav-arrow-marker ${isEditor ? 'editable' : ''}" data-nav-id="${nav.id}">
+          <div class="floor-arrow">
+            <svg viewBox="0 0 100 80" fill="currentColor">
+              <polygon points="50,0 100,60 75,60 75,80 25,80 25,60 0,60"/>
+            </svg>
+          </div>
+          <span class="nav-label">${nav.label || targetPano?.name || 'Navigation'}</span>
+        </div>`,
+        anchor: 'bottom center',
+        data: { type: 'nav', targetPanoramaId: nav.targetScene, ...nav }
+      });
+    }
+    
+    function deleteNavArrow(navId) {
+      if (!project) return;
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano || !pano.navArrows) return;
+      
+      const index = pano.navArrows.findIndex(n => n.id === navId);
+      if (index === -1) return;
+      
+      pano.navArrows.splice(index, 1);
+      
+      // Remove marker
+      try {
+        state.markersPlugin.removeMarker(navId);
+      } catch {}
+      
+      hidePropertiesPanel();
+      showToast('Navigationspfeil gelöscht');
+    }
+    
+    function updateNavFromPanel() {
+      if (!state.selectedElement || state.selectedElement.type !== 'nav') return;
+      
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      const nav = pano?.navArrows?.find(n => n.id === state.selectedElement.id);
+      if (!nav) return;
+      
+      nav.targetScene = elements.navTarget.value;
+      nav.label = elements.navLabel.value;
+      
+      // Update marker
+      addNavArrowMarker(nav);
+      
+      showToast('Navigationspfeil gespeichert');
     }
     
     function updateStatsVisibility() {
@@ -2212,6 +3112,109 @@
     elements.compass.addEventListener('click', () => {
       state.viewer.rotate({ yaw: 0, pitch: 0 });
       showToast('Ansicht zurückgesetzt');
+    });
+    
+    // ==========================================
+    // EDITOR TOOLBAR EVENTS
+    // ==========================================
+    
+    // Mode toggle
+    elements.btnModeToggle.addEventListener('click', toggleMode);
+    
+    // Tool buttons
+    elements.toolPoi.addEventListener('click', () => {
+      if (state.placementMode === 'poi') {
+        cancelPlacementMode();
+        elements.toolPoi.classList.remove('active');
+      } else {
+        setPlacementMode('poi');
+        elements.toolPoi.classList.add('active');
+        elements.toolNav.classList.remove('active');
+      }
+    });
+    
+    elements.toolNav.addEventListener('click', () => {
+      if (state.placementMode === 'nav') {
+        cancelPlacementMode();
+        elements.toolNav.classList.remove('active');
+      } else {
+        setPlacementMode('nav');
+        elements.toolNav.classList.add('active');
+        elements.toolPoi.classList.remove('active');
+      }
+    });
+    
+    elements.toolView.addEventListener('click', () => {
+      if (!state.viewer) return;
+      const pos = state.viewer.getPosition();
+      const zoom = state.viewer.getZoomLevel();
+      
+      // Save to current panorama
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (pano) {
+        pano.initialView = {
+          yaw: pos.yaw,
+          pitch: pos.pitch,
+          fov: state.viewer.config.defaultZoomLvl
+        };
+        showToast('Startansicht gespeichert');
+        console.log('[Editor] Initial view saved:', pano.initialView);
+      }
+    });
+    
+    // Properties panel close
+    elements.propsClose.addEventListener('click', hidePropertiesPanel);
+    
+    // Properties panel sliders
+    elements.propsPitchMin.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      elements.propsPitchMinVal.textContent = `${val}°`;
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (pano) {
+        pano.pitchLimits = pano.pitchLimits || {};
+        pano.pitchLimits.min = val;
+      }
+    });
+    
+    elements.propsPitchMax.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      elements.propsPitchMaxVal.textContent = `${val}°`;
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (pano) {
+        pano.pitchLimits = pano.pitchLimits || {};
+        pano.pitchLimits.max = val;
+      }
+    });
+    
+    // Panorama name
+    elements.panoName.addEventListener('change', (e) => {
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (pano) {
+        pano.name = e.target.value;
+        renderScenesPanel();
+        showToast('Name gespeichert');
+      }
+    });
+    
+    // Set view button in properties
+    elements.btnSetView.addEventListener('click', () => {
+      elements.toolView.click();
+    });
+    
+    // POI save/delete
+    elements.poiSave.addEventListener('click', updatePoiFromPanel);
+    elements.poiDelete.addEventListener('click', () => {
+      if (state.selectedElement?.type === 'poi') {
+        deletePoi(state.selectedElement.id);
+      }
+    });
+    
+    // Nav save/delete
+    elements.navSave.addEventListener('click', updateNavFromPanel);
+    elements.navDelete.addEventListener('click', () => {
+      if (state.selectedElement?.type === 'nav') {
+        deleteNavArrow(state.selectedElement.id);
+      }
     });
     
     // Scene selection
@@ -2610,6 +3613,7 @@
       
       const panel = elements.scenesPanel;
       panel.innerHTML = '';
+      const isEditor = state.mode === 'editor';
       
       project.panoramas.forEach((pano, index) => {
         const thumb = document.createElement('div');
@@ -2618,15 +3622,19 @@
         thumb.setAttribute('aria-selected', pano.id === state.currentScene);
         thumb.setAttribute('tabindex', pano.id === state.currentScene ? '0' : '-1');
         thumb.setAttribute('data-scene', pano.id);
-        thumb.setAttribute('draggable', 'true');
+        
+        // Only allow drag in editor mode
+        if (isEditor) {
+          thumb.setAttribute('draggable', 'true');
+        }
         
         thumb.innerHTML = `
           <img class="scene-thumb-preview" src="${pano.previewPath}" alt="${pano.name}">
           <div class="scene-thumb-overlay"></div>
-          <div class="scene-thumb-drag" title="Ziehen zum Sortieren">⋮⋮</div>
-          <button class="scene-thumb-menu" title="Optionen" aria-label="Szenen-Optionen">
+          ${isEditor ? '<div class="scene-thumb-drag" title="Ziehen zum Sortieren">⋮⋮</div>' : ''}
+          ${isEditor ? `<button class="scene-thumb-menu" title="Optionen" aria-label="Szenen-Optionen">
             <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-          </button>
+          </button>` : ''}
           <span class="scene-thumb-number">${index + 1}</span>
           <span class="scene-thumb-label">${pano.name}</span>
           <div class="scene-thumb-active-indicator"></div>
@@ -2639,13 +3647,15 @@
           }
         });
         
-        // Menu button click
+        // Menu button click (only in editor mode)
         const menuBtn = thumb.querySelector('.scene-thumb-menu');
-        menuBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const rect = menuBtn.getBoundingClientRect();
-          showContextMenu(rect.right + 4, rect.top, pano.id);
-        });
+        if (menuBtn) {
+          menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = menuBtn.getBoundingClientRect();
+            showContextMenu(rect.right + 4, rect.top, pano.id);
+          });
+        }
         
         // Keyboard
         thumb.addEventListener('keydown', (e) => {
@@ -2664,45 +3674,50 @@
           });
         }
         
-        // Context menu (right click)
-        thumb.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          showContextMenu(e.clientX, e.clientY, pano.id);
-        });
-        
-        // Drag and drop - only from drag handle
-        const dragHandle = thumb.querySelector('.scene-thumb-drag');
-        
-        dragHandle.addEventListener('mousedown', () => {
-          thumb.setAttribute('draggable', 'true');
-        });
-        
-        thumb.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('text/plain', pano.id);
-          e.dataTransfer.effectAllowed = 'move';
-          setTimeout(() => thumb.classList.add('dragging'), 0);
-        });
-        
-        thumb.addEventListener('dragend', () => {
-          thumb.classList.remove('dragging');
-        });
-        
-        thumb.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          thumb.classList.add('drag-over');
-        });
-        
-        thumb.addEventListener('dragleave', () => {
-          thumb.classList.remove('drag-over');
-        });
-        
-        thumb.addEventListener('drop', (e) => {
-          e.preventDefault();
-          thumb.classList.remove('drag-over');
-          const fromId = e.dataTransfer.getData('text/plain');
-          reorderPanoramas(fromId, pano.id);
-        });
+        // Editor-only features: context menu and drag
+        if (isEditor) {
+          // Context menu (right click)
+          thumb.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showContextMenu(e.clientX, e.clientY, pano.id);
+          });
+          
+          // Drag and drop - only from drag handle
+          const dragHandle = thumb.querySelector('.scene-thumb-drag');
+          
+          if (dragHandle) {
+            dragHandle.addEventListener('mousedown', () => {
+              thumb.setAttribute('draggable', 'true');
+            });
+          }
+          
+          thumb.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', pano.id);
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => thumb.classList.add('dragging'), 0);
+          });
+          
+          thumb.addEventListener('dragend', () => {
+            thumb.classList.remove('dragging');
+          });
+          
+          thumb.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            thumb.classList.add('drag-over');
+          });
+          
+          thumb.addEventListener('dragleave', () => {
+            thumb.classList.remove('drag-over');
+          });
+          
+          thumb.addEventListener('drop', (e) => {
+            e.preventDefault();
+            thumb.classList.remove('drag-over');
+            const fromId = e.dataTransfer.getData('text/plain');
+            reorderPanoramas(fromId, pano.id);
+          });
+        }
         
         panel.appendChild(thumb);
       });
@@ -2819,12 +3834,41 @@
         const data = marker.config.data;
         if (!data) return;
         
+        // In editor mode, select element for editing
+        if (state.mode === 'editor') {
+          if (data.type === 'poi') {
+            selectElement('poi', marker.id);
+          } else if (data.type === 'nav') {
+            selectElement('nav', marker.id);
+          }
+          return;
+        }
+        
+        // In viewer mode, activate element
         if (data.type === 'nav' && data.targetPanoramaId) {
           switchScene(data.targetPanoramaId);
         } else if (data.type === 'poi') {
           // POI click - could open modal in future
           showToast(data.title || 'Info');
         }
+      });
+      
+      // Click on panorama for placement mode
+      state.viewer.addEventListener('click', ({ data }) => {
+        if (!state.placementMode) return;
+        
+        const { yaw, pitch } = data;
+        
+        if (state.placementMode === 'poi') {
+          addPoi(yaw, pitch);
+        } else if (state.placementMode === 'nav') {
+          addNavArrow(yaw, pitch);
+        }
+        
+        // Exit placement mode after placing
+        cancelPlacementMode();
+        elements.toolPoi.classList.remove('active');
+        elements.toolNav.classList.remove('active');
       });
     }
     
