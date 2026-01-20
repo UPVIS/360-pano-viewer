@@ -85,7 +85,7 @@
     ========================================== */
     #mode-toggle-container {
       position: fixed;
-      top: 16px;
+      bottom: 100px;
       right: 16px;
       z-index: 160;
     }
@@ -194,10 +194,10 @@
     ========================================== */
     #properties-panel {
       position: fixed;
-      top: 80px;
-      right: 16px;
       bottom: 100px;
+      right: 16px;
       width: 320px;
+      max-height: calc(100vh - 200px);
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
@@ -253,7 +253,7 @@
     }
     
     .props-content {
-      flex: 1;
+      flex: 0 1 auto;
       overflow-y: auto;
       padding: 16px;
     }
@@ -388,6 +388,71 @@
       margin: 0 0 8px 0;
     }
     
+    /* POI Content Editors */
+    .poi-content-editor {
+      margin-bottom: 8px;
+    }
+    
+    .poi-content-editor.hidden {
+      display: none;
+    }
+    
+    .image-upload-area {
+      border: 2px dashed var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      text-align: center;
+      transition: var(--transition-fast);
+    }
+    
+    .image-upload-area:hover {
+      border-color: var(--accent-color);
+    }
+    
+    .hidden-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .upload-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    
+    .upload-label:hover {
+      color: var(--accent-color);
+    }
+    
+    .image-preview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      margin-top: 8px;
+    }
+    
+    .image-preview.hidden {
+      display: none;
+    }
+    
+    .video-preview {
+      margin-top: 8px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    
+    .video-preview iframe {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border: none;
+    }
+    
     /* ==========================================
        POI MARKERS
     ========================================== */
@@ -504,6 +569,104 @@
     .nav-arrow-marker:hover .nav-label {
       opacity: 1;
       transform: translateY(0);
+    }
+    
+    /* ==========================================
+       POI TOOLTIP (Viewer Mode)
+    ========================================== */
+    .poi-tooltip {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 0;
+      max-width: 400px;
+      min-width: 280px;
+      z-index: 200;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    
+    .poi-tooltip.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    
+    .poi-tooltip.hidden {
+      display: none;
+    }
+    
+    .poi-tooltip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .poi-tooltip-header h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-primary);
+    }
+    
+    .poi-tooltip-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition-fast);
+    }
+    
+    .poi-tooltip-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+    
+    .poi-tooltip-content {
+      padding: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .poi-tooltip-content p {
+      margin: 0 0 8px 0;
+      line-height: 1.5;
+    }
+    
+    .poi-tooltip-content img {
+      width: 100%;
+      border-radius: var(--radius-md);
+    }
+    
+    .poi-tooltip-content iframe {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border: none;
+      border-radius: var(--radius-md);
+    }
+    
+    .poi-tooltip-content a {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+    
+    .poi-tooltip-content a:hover {
+      text-decoration: underline;
     }
     
     /* ==========================================
@@ -1636,9 +1799,42 @@
           </select>
           
           <label class="props-label">Inhalt</label>
-          <div id="poi-editor" class="props-editor" contenteditable="true"></div>
+          
+          <!-- Info: Rich Text Editor -->
+          <div id="poi-content-info" class="poi-content-editor">
+            <div id="poi-editor" class="props-editor" contenteditable="true"></div>
+          </div>
+          
+          <!-- Image: Upload + Preview -->
+          <div id="poi-content-image" class="poi-content-editor hidden">
+            <div class="image-upload-area" id="image-upload-area">
+              <input type="file" id="poi-image-upload" accept="image/*" class="hidden-input">
+              <label for="poi-image-upload" class="upload-label">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path d="M21 15l-5-5L5 21"/>
+                </svg>
+                <span>Bild auswählen</span>
+              </label>
+            </div>
+            <img id="poi-image-preview" class="image-preview hidden" src="" alt="Vorschau">
+          </div>
+          
+          <!-- Video: YouTube URL -->
+          <div id="poi-content-video" class="poi-content-editor hidden">
+            <input type="text" id="poi-video-url" class="props-input" placeholder="YouTube URL einfügen">
+            <div id="poi-video-preview" class="video-preview"></div>
+          </div>
+          
+          <!-- Link: URL + Label -->
+          <div id="poi-content-link" class="poi-content-editor hidden">
+            <input type="text" id="poi-link-url" class="props-input" placeholder="https://...">
+            <input type="text" id="poi-link-label" class="props-input" placeholder="Link-Text (optional)">
+          </div>
           
           <div class="props-actions">
+            <button id="poi-move" class="props-btn">Verschieben</button>
             <button id="poi-save" class="props-btn primary">Speichern</button>
             <button id="poi-delete" class="props-btn danger">Löschen</button>
           </div>
@@ -1652,11 +1848,25 @@
           <input type="text" id="nav-label" class="props-input" placeholder="z.B. 'Zum Wohnzimmer'">
           
           <div class="props-actions">
+            <button id="nav-move" class="props-btn">Verschieben</button>
             <button id="nav-save" class="props-btn primary">Speichern</button>
             <button id="nav-delete" class="props-btn danger">Löschen</button>
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- POI Tooltip (Viewer Mode) -->
+    <div id="poi-tooltip" class="poi-tooltip hidden">
+      <div class="poi-tooltip-header">
+        <h4 id="poi-tooltip-title">POI Titel</h4>
+        <button id="poi-tooltip-close" class="poi-tooltip-close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="poi-tooltip-content" class="poi-tooltip-content"></div>
     </div>
     
     <!-- Stats Overlay (Nerd Stats) -->
@@ -1921,7 +2131,8 @@
     const STORAGE_KEYS = {
       pitchMin: 'pano-pitch-min',
       pitchMax: 'pano-pitch-max',
-      showStats: 'pano-show-stats'
+      showStats: 'pano-show-stats',
+      autorotateSpeed: 'pano-autorotate-speed'
     };
     
     // ==========================================
@@ -2135,7 +2346,8 @@
       return {
         pitchMin: parseInt(localStorage.getItem(STORAGE_KEYS.pitchMin)) || -30,
         pitchMax: parseInt(localStorage.getItem(STORAGE_KEYS.pitchMax)) || 30,
-        showStats: localStorage.getItem(STORAGE_KEYS.showStats) !== 'false' // default true
+        showStats: localStorage.getItem(STORAGE_KEYS.showStats) !== 'false', // default true
+        autorotateSpeed: parseInt(localStorage.getItem(STORAGE_KEYS.autorotateSpeed)) || 5 // default 5 (= 0.5 rpm)
       };
     }
     
@@ -2170,7 +2382,7 @@
         max: 120
       },
       autorotate: {
-        speed: 0.5  // rpm
+        speed: savedSettings.autorotateSpeed / 10  // rpm (slider value 1-10 -> 0.1-1.0 rpm)
       },
       showStats: savedSettings.showStats
     };
@@ -2201,7 +2413,8 @@
       mode: 'viewer',             // 'viewer' | 'editor'
       selectedElement: null,      // { type: 'poi'|'nav', id: string }
       placementMode: null,        // 'poi' | 'nav' | null
-      propsVisible: false         // Properties panel visibility
+      propsVisible: false,        // Properties panel visibility
+      isDraggingMarker: false     // True when dragging a POI/Nav marker
     };
     
     // ==========================================
@@ -2222,6 +2435,10 @@
       toast: $('#toast'),
       toastMessage: $('#toast-message'),
       keyboardHint: $('#keyboard-hint'),
+      poiTooltip: $('#poi-tooltip'),
+      poiTooltipTitle: $('#poi-tooltip-title'),
+      poiTooltipContent: $('#poi-tooltip-content'),
+      poiTooltipClose: $('#poi-tooltip-close'),
       // Stats
       tilesLoaded: $('#tiles-loaded'),
       activeRequests: $('#active-requests'),
@@ -2286,10 +2503,24 @@
       poiTitle: $('#poi-title'),
       poiIcon: $('#poi-icon'),
       poiEditor: $('#poi-editor'),
+      poiMove: $('#poi-move'),
       poiSave: $('#poi-save'),
       poiDelete: $('#poi-delete'),
+      // POI Content Editors
+      poiContentInfo: $('#poi-content-info'),
+      poiContentImage: $('#poi-content-image'),
+      poiContentVideo: $('#poi-content-video'),
+      poiContentLink: $('#poi-content-link'),
+      poiImageUpload: $('#poi-image-upload'),
+      poiImagePreview: $('#poi-image-preview'),
+      poiVideoUrl: $('#poi-video-url'),
+      poiVideoPreview: $('#poi-video-preview'),
+      poiLinkUrl: $('#poi-link-url'),
+      poiLinkLabel: $('#poi-link-label'),
+      // Nav
       navTarget: $('#nav-target'),
       navLabel: $('#nav-label'),
+      navMove: $('#nav-move'),
       navSave: $('#nav-save'),
       navDelete: $('#nav-delete')
     };
@@ -2447,6 +2678,15 @@
       elements.pitchMinValue.textContent = `${CONFIG.pitchLimits.min}°`;
       elements.pitchMaxValue.textContent = `${CONFIG.pitchLimits.max}°`;
       
+      // Auto-rotation speed from saved settings
+      const savedSpeed = Math.round(CONFIG.autorotate.speed * 10); // Convert rpm back to slider value
+      elements.sliderSpeed.value = savedSpeed;
+      elements.speedValue.textContent = savedSpeed;
+      // Apply speed to plugin (it's already initialized with CONFIG.autorotate.speed)
+      if (state.autorotatePlugin) {
+        state.autorotatePlugin.setOptions({ autorotateSpeed: `${CONFIG.autorotate.speed}rpm` });
+      }
+      
       // Stats visibility
       elements.toggleStats.classList.toggle('active', state.showStats);
       elements.toggleStats.setAttribute('aria-checked', state.showStats);
@@ -2578,11 +2818,31 @@
       elements.poiTitle.value = poi.title || '';
       elements.poiIcon.value = poi.icon || 'info';
       
-      // Tiptap editor would be updated here
-      if (elements.poiEditor._tiptap) {
-        elements.poiEditor._tiptap.commands.setContent(poi.description || '');
-      } else {
-        elements.poiEditor.innerHTML = poi.description || '<p>Inhalt eingeben...</p>';
+      // Show correct content editor
+      showPoiContentEditor(poi.icon || 'info');
+      
+      // Load content based on type
+      const content = poi.content || {};
+      switch (poi.icon) {
+        case 'info':
+          elements.poiEditor.innerHTML = content.html || poi.description || '<p>Inhalt eingeben...</p>';
+          break;
+        case 'image':
+          if (content.src) {
+            elements.poiImagePreview.src = content.src;
+            elements.poiImagePreview.classList.remove('hidden');
+          } else {
+            elements.poiImagePreview.classList.add('hidden');
+          }
+          break;
+        case 'video':
+          elements.poiVideoUrl.value = content.url || '';
+          if (content.url) updateVideoPreview(content.url);
+          break;
+        case 'link':
+          elements.poiLinkUrl.value = content.url || '';
+          elements.poiLinkLabel.value = content.label || '';
+          break;
       }
     }
     
@@ -2611,6 +2871,100 @@
     function selectElement(type, id) {
       state.selectedElement = { type, id };
       showPropertiesPanel(type);
+    }
+    
+    function startMarkerDrag() {
+      if (!state.selectedElement) return;
+      state.isDraggingMarker = true;
+      document.body.classList.add('placement-active');
+      showToast('Klicke auf die neue Position');
+    }
+    
+    function updateMarkerPosition(yaw, pitch) {
+      if (!state.selectedElement || !project) return;
+      
+      const pano = project.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return;
+      
+      if (state.selectedElement.type === 'poi') {
+        const poi = pano.pois?.find(p => p.id === state.selectedElement.id);
+        if (poi) {
+          poi.position = { yaw, pitch };
+          addPoiMarker(poi);
+          showToast('Position aktualisiert');
+        }
+      } else if (state.selectedElement.type === 'nav') {
+        const nav = pano.navArrows?.find(n => n.id === state.selectedElement.id);
+        if (nav) {
+          nav.position = { yaw, pitch };
+          addNavArrowMarker(nav);
+          showToast('Position aktualisiert');
+        }
+      }
+      
+      state.isDraggingMarker = false;
+      document.body.classList.remove('placement-active');
+    }
+    
+    // ==========================================
+    // POI TOOLTIP (Viewer Mode)
+    // ==========================================
+    
+    function showPoiTooltip(poiId) {
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      const poi = pano?.pois?.find(p => p.id === poiId);
+      if (!poi) return;
+      
+      const tooltip = $('#poi-tooltip');
+      const title = $('#poi-tooltip-title');
+      const content = $('#poi-tooltip-content');
+      
+      title.textContent = poi.title || 'Info';
+      
+      // Generate content based on type
+      const poiContent = poi.content || {};
+      switch (poi.icon) {
+        case 'info':
+          content.innerHTML = poiContent.html || poi.description || '<p>Keine Beschreibung</p>';
+          break;
+        case 'image':
+          if (poiContent.src) {
+            content.innerHTML = `<img src="${poiContent.src}" alt="${poi.title || 'Bild'}">`;
+          } else {
+            content.innerHTML = '<p>Kein Bild vorhanden</p>';
+          }
+          break;
+        case 'video':
+          if (poiContent.youtubeId) {
+            content.innerHTML = `<iframe src="https://www.youtube.com/embed/${poiContent.youtubeId}" allowfullscreen></iframe>`;
+          } else {
+            content.innerHTML = '<p>Kein Video vorhanden</p>';
+          }
+          break;
+        case 'link':
+          if (poiContent.url) {
+            const label = poiContent.label || poiContent.url;
+            content.innerHTML = `<a href="${poiContent.url}" target="_blank" rel="noopener">${label}</a>`;
+          } else {
+            content.innerHTML = '<p>Kein Link vorhanden</p>';
+          }
+          break;
+        default:
+          content.innerHTML = poi.description || '<p>Keine Beschreibung</p>';
+      }
+      
+      tooltip.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        tooltip.classList.add('visible');
+      });
+    }
+    
+    function hidePoiTooltip() {
+      const tooltip = $('#poi-tooltip');
+      tooltip.classList.remove('visible');
+      setTimeout(() => {
+        tooltip.classList.add('hidden');
+      }, 200);
     }
     
     // ==========================================
@@ -2698,6 +3052,44 @@
       showToast('POI gelöscht');
     }
     
+    function showPoiContentEditor(type) {
+      // Hide all content editors
+      elements.poiContentInfo.classList.add('hidden');
+      elements.poiContentImage.classList.add('hidden');
+      elements.poiContentVideo.classList.add('hidden');
+      elements.poiContentLink.classList.add('hidden');
+      
+      // Show the selected one
+      switch (type) {
+        case 'info':
+          elements.poiContentInfo.classList.remove('hidden');
+          break;
+        case 'image':
+          elements.poiContentImage.classList.remove('hidden');
+          break;
+        case 'video':
+          elements.poiContentVideo.classList.remove('hidden');
+          break;
+        case 'link':
+          elements.poiContentLink.classList.remove('hidden');
+          break;
+      }
+    }
+    
+    function extractYouTubeId(url) {
+      const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+    
+    function updateVideoPreview(url) {
+      const videoId = extractYouTubeId(url);
+      if (videoId) {
+        elements.poiVideoPreview.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+      } else {
+        elements.poiVideoPreview.innerHTML = '<p style="color: var(--text-secondary); font-size: 12px;">Ungültige YouTube URL</p>';
+      }
+    }
+    
     function updatePoiFromPanel() {
       if (!state.selectedElement || state.selectedElement.type !== 'poi') return;
       
@@ -2707,11 +3099,27 @@
       
       poi.title = elements.poiTitle.value;
       poi.icon = elements.poiIcon.value;
-      poi.description = elements.poiEditor.innerHTML;
+      
+      // Save content based on type
+      switch (poi.icon) {
+        case 'info':
+          poi.content = { type: 'info', html: elements.poiEditor.innerHTML };
+          break;
+        case 'image':
+          poi.content = { type: 'image', src: elements.poiImagePreview.src };
+          break;
+        case 'video':
+          poi.content = { type: 'video', url: elements.poiVideoUrl.value, youtubeId: extractYouTubeId(elements.poiVideoUrl.value) };
+          break;
+        case 'link':
+          poi.content = { type: 'link', url: elements.poiLinkUrl.value, label: elements.poiLinkLabel.value };
+          break;
+      }
       
       // Update marker
       addPoiMarker(poi);
       
+      hidePropertiesPanel();
       showToast('POI gespeichert');
     }
     
@@ -2831,6 +3239,7 @@
       // Update marker
       addNavArrowMarker(nav);
       
+      hidePropertiesPanel();
       showToast('Navigationspfeil gespeichert');
     }
     
@@ -3106,8 +3515,15 @@
     elements.sliderSpeed.addEventListener('input', (e) => {
       const speed = parseInt(e.target.value);
       elements.speedValue.textContent = speed;
+      CONFIG.autorotate.speed = speed / 10; // Update config
+      saveSettings(STORAGE_KEYS.autorotateSpeed, speed); // Persist to localStorage
       if (state.autorotatePlugin) {
         state.autorotatePlugin.setOptions({ autorotateSpeed: `${speed / 10}rpm` });
+        // If autorotation is active, restart it to apply the new speed immediately
+        if (state.isAutorotating) {
+          state.autorotatePlugin.stop();
+          state.autorotatePlugin.start();
+        }
       }
     });
     
@@ -3259,7 +3675,8 @@
       elements.toolView.click();
     });
     
-    // POI save/delete
+    // POI move/save/delete
+    elements.poiMove.addEventListener('click', startMarkerDrag);
     elements.poiSave.addEventListener('click', updatePoiFromPanel);
     elements.poiDelete.addEventListener('click', () => {
       if (state.selectedElement?.type === 'poi') {
@@ -3267,13 +3684,40 @@
       }
     });
     
-    // Nav save/delete
+    // POI icon type change
+    elements.poiIcon.addEventListener('change', (e) => {
+      showPoiContentEditor(e.target.value);
+    });
+    
+    // POI image upload
+    elements.poiImageUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        elements.poiImagePreview.src = event.target.result;
+        elements.poiImagePreview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // POI video URL change
+    elements.poiVideoUrl.addEventListener('input', (e) => {
+      updateVideoPreview(e.target.value);
+    });
+    
+    // Nav move/save/delete
+    elements.navMove.addEventListener('click', startMarkerDrag);
     elements.navSave.addEventListener('click', updateNavFromPanel);
     elements.navDelete.addEventListener('click', () => {
       if (state.selectedElement?.type === 'nav') {
         deleteNavArrow(state.selectedElement.id);
       }
     });
+    
+    // POI Tooltip close
+    elements.poiTooltipClose.addEventListener('click', hidePoiTooltip);
     
     // Scene selection
     $$('.scene-thumb').forEach(thumb => {
@@ -3906,16 +4350,23 @@
         if (data.type === 'nav' && data.targetPanoramaId) {
           switchScene(data.targetPanoramaId);
         } else if (data.type === 'poi') {
-          // POI click - could open modal in future
-          showToast(data.title || 'Info');
+          // Show POI tooltip
+          showPoiTooltip(marker.id);
         }
       });
       
-      // Click on panorama for placement mode
+      // Click on panorama for placement mode or marker drag
       state.viewer.addEventListener('click', ({ data }) => {
-        if (!state.placementMode) return;
-        
         const { yaw, pitch } = data;
+        
+        // Handle marker dragging first
+        if (state.isDraggingMarker && state.selectedElement) {
+          updateMarkerPosition(yaw, pitch);
+          return;
+        }
+        
+        // Handle placement mode
+        if (!state.placementMode) return;
         
         if (state.placementMode === 'poi') {
           addPoi(yaw, pitch);
