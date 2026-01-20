@@ -2735,7 +2735,7 @@
       CONFIG.tiles = buildPanoramaConfig(firstPano, manifest);
       CONFIG.initialView = firstPano.initialView;
       
-      console.log('[Init] Multi-level config:', CONFIG.tiles.levels.map(l => `${l.id}: ${l.width}px [${l.zoomRange.join('-')}]`).join(', '));
+      console.log(`[Init] Tiles config: ${CONFIG.tiles.width}px (${CONFIG.tiles.cols}x${CONFIG.tiles.rows} tiles)`);
       
       // Render scenes panel
       renderScenesPanel();
