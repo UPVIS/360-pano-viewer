@@ -1180,8 +1180,8 @@
       <div class="stat-section">
         <div class="stat-section-title">CACHE</div>
         <div class="stat-row">
-          <span class="stat-label">Zoom</span>
-          <span class="stat-value" id="current-level">0%</span>
+          <span class="stat-label">Level</span>
+          <span class="stat-value" id="current-level">L1</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">Cached</span>
@@ -1388,24 +1388,40 @@
     const LOADING_CONFIG = {
       preloadOnHover: true,      // Preload bei Hover auf Thumbnails
       preloadAdjacentCount: 2,   // Anzahl preloaded Szenen
-      cacheMaxTiles: 150         // Max cached Tiles
+      cacheMaxTiles: 150,        // Max cached Tiles
+      // Zoom thresholds for level switching (PSV zoom is 0-100, higher = more zoomed in)
+      zoomThresholds: {
+        level0Max: 40,   // Use level-0 when zoom <= 40%
+        level1Max: 70    // Use level-1 when zoom <= 70%, else level-2
+      },
+      levelSwitchDebounce: 500   // ms to wait before switching levels
     };
     
     // ==========================================
-    // MULTI-LEVEL TILE HELPERS
+    // ZOOM-BASED LEVEL HELPERS
     // ==========================================
     
     /**
-     * Build panorama config for PSV
-     * Uses medium resolution (level-1) as good balance between quality and speed
+     * Determine which level to use based on zoom
      */
-    function buildPanoramaConfig(pano, manifest) {
-      // Use level-1 (4K, 32 tiles) as default - good balance
-      // Level-0 is too blurry, Level-2 is too slow for initial load
-      const levelIndex = Math.min(1, manifest.levels.length - 1);
+    function getLevelForZoom(zoom, totalLevels) {
+      if (totalLevels === 1) return 0;
+      if (totalLevels === 2) {
+        return zoom <= LOADING_CONFIG.zoomThresholds.level0Max ? 0 : 1;
+      }
+      // 3+ levels
+      if (zoom <= LOADING_CONFIG.zoomThresholds.level0Max) return 0;
+      if (zoom <= LOADING_CONFIG.zoomThresholds.level1Max) return 1;
+      return Math.min(2, totalLevels - 1);
+    }
+    
+    /**
+     * Build panorama config for PSV at specific level
+     */
+    function buildPanoramaConfig(pano, manifest, levelIndex = 1) {
+      // Clamp to valid range
+      levelIndex = Math.max(0, Math.min(levelIndex, manifest.levels.length - 1));
       const level = manifest.levels[levelIndex];
-      
-      console.log(`[Config] Using level-${levelIndex}: ${level.width}px (${level.cols}x${level.rows} tiles)`);
       
       return {
         baseUrl: pano.previewPath,
@@ -1414,6 +1430,76 @@
         rows: level.rows,
         tileUrl: (col, row) => `${pano.tilesPath}level-${levelIndex}/row-${row}/tile-${col}.webp`
       };
+    }
+    
+    /**
+     * Switch to a different resolution level based on zoom
+     */
+    async function switchToLevel(newLevel) {
+      if (state.isLevelSwitching) return;
+      if (newLevel === state.currentLevel) return;
+      
+      const pano = project?.panoramas.find(p => p.id === state.currentScene);
+      if (!pano) return;
+      
+      const manifest = tileCache.manifests.get(state.currentScene);
+      if (!manifest) return;
+      
+      // Clamp to valid range
+      newLevel = Math.max(0, Math.min(newLevel, manifest.levels.length - 1));
+      if (newLevel === state.currentLevel) return;
+      
+      state.isLevelSwitching = true;
+      const oldLevel = state.currentLevel;
+      
+      console.log(`[Level] Switching: L${oldLevel} → L${newLevel} (${manifest.levels[newLevel].width}px)`);
+      
+      try {
+        const config = buildPanoramaConfig(pano, manifest, newLevel);
+        
+        // Remember current view
+        const position = state.viewer.getPosition();
+        const zoom = state.viewer.getZoomLevel();
+        
+        await state.viewer.setPanorama(config);
+        
+        // Restore view
+        state.viewer.rotate(position);
+        state.viewer.zoom(zoom);
+        
+        state.currentLevel = newLevel;
+        console.log(`[Level] Now at L${newLevel}`);
+      } catch (err) {
+        console.warn('[Level] Switch failed:', err);
+      } finally {
+        state.isLevelSwitching = false;
+      }
+    }
+    
+    /**
+     * Setup zoom listener for automatic level switching
+     */
+    function setupZoomLevelSwitcher() {
+      if (!state.viewer) return;
+      
+      let debounceTimer = null;
+      
+      state.viewer.addEventListener('zoom-updated', ({ zoomLevel }) => {
+        if (state.isLevelSwitching) return;
+        
+        const manifest = tileCache.manifests.get(state.currentScene);
+        if (!manifest) return;
+        
+        const targetLevel = getLevelForZoom(zoomLevel, manifest.levels.length);
+        
+        if (targetLevel !== state.currentLevel) {
+          // Debounce to avoid rapid switches
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            switchToLevel(targetLevel);
+          }, LOADING_CONFIG.levelSwitchDebounce);
+        }
+      });
     }
     
     // ==========================================
@@ -1534,6 +1620,8 @@
       scenesVisible: false,
       settingsVisible: false,
       currentScene: 'scene-1',
+      currentLevel: 1,            // Current resolution level
+      isLevelSwitching: false,    // Prevents rapid level switches
       tilesLoaded: 0,
       activeRequests: 0,
       fps: 0,
@@ -1684,6 +1772,9 @@
         preloadAdjacentScenes(state.currentScene);
       }
       
+      // Setup zoom-based level switching
+      setupZoomLevelSwitcher();
+      
       // Initial UI update
       updateUI();
       updateCacheStats();
@@ -1737,9 +1828,11 @@
     function updateCacheStats() {
       const cacheStats = tileCache.getStats();
       
-      // Get current zoom to show which level is active
+      // Show current level and zoom
       const zoom = state.viewer ? Math.round(state.viewer.getZoomLevel()) : 0;
-      elements.currentLevel.textContent = `Z${zoom}%`;
+      const manifest = tileCache.manifests.get(state.currentScene);
+      const levelWidth = manifest?.levels[state.currentLevel]?.width || '?';
+      elements.currentLevel.textContent = `L${state.currentLevel} (${levelWidth}px)`;
       elements.cacheSize.textContent = `${cacheStats.tiles}/${LOADING_CONFIG.cacheMaxTiles}`;
       elements.cacheHitRate.textContent = `${cacheStats.hitRate}%`;
       elements.preloadedScenes.textContent = `${state.preloadedScenes.size}`;
@@ -2401,8 +2494,11 @@
         tileCache.manifests.set(targetSceneId, manifest);
       }
       
-      // Use native PSV multi-level config (automatic zoom-based resolution)
-      const panoConfig = buildPanoramaConfig(targetPano, manifest);
+      // Start with level-1 (good balance), zoom listener will adjust
+      const initialLevel = Math.min(1, manifest.levels.length - 1);
+      state.currentLevel = initialLevel;
+      
+      const panoConfig = buildPanoramaConfig(targetPano, manifest, initialLevel);
       
       await state.viewer.setPanorama(panoConfig);
       
