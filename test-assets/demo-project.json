@@ -1,0 +1,138 @@
+{
+  "id": "demo-project",
+  "version": 1,
+  "name": "Demo Tour",
+  "description": "Demo-Projekt zum Testen der Multi-Panorama-Navigation",
+  "created": "2026-01-20T20:00:00.000Z",
+  "modified": "2026-01-20T20:00:00.000Z",
+  
+  "settings": {
+    "accentColor": "#4ade80",
+    "transition": {
+      "type": "zoom-fade",
+      "duration": 800,
+      "easing": "ease-in-out"
+    },
+    "arrowStyle": "floor",
+    "autoRotate": false,
+    "autoRotateSpeed": 0.5,
+    "showControls": true,
+    "showScenesList": true,
+    "pitchLimitsDefault": {
+      "min": -30,
+      "max": 30
+    }
+  },
+  
+  "panoramas": [
+    {
+      "id": "scene-1",
+      "name": "Eingang",
+      "description": "Der Haupteingang des Gebäudes",
+      "tilesPath": "/test-assets/tiles/sample/",
+      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "initialView": {
+        "yaw": 0,
+        "pitch": 0,
+        "fov": 70
+      },
+      "pitchLimits": {
+        "min": -30,
+        "max": 30
+      },
+      "pois": [
+        {
+          "id": "poi-1",
+          "position": { "yaw": 0.8, "pitch": 0 },
+          "title": "Willkommen",
+          "description": "Willkommen in unserer virtuellen Tour!",
+          "icon": "info"
+        }
+      ],
+      "navArrows": [
+        {
+          "id": "arrow-1",
+          "position": { "yaw": -1.5, "pitch": -0.25 },
+          "targetPanoramaId": "scene-2",
+          "label": "Wohnzimmer"
+        },
+        {
+          "id": "arrow-2",
+          "position": { "yaw": 1.8, "pitch": -0.2 },
+          "targetPanoramaId": "scene-3",
+          "label": "Küche"
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "name": "Wohnzimmer",
+      "description": "Das geräumige Wohnzimmer",
+      "tilesPath": "/test-assets/tiles/sample/",
+      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "initialView": {
+        "yaw": 1.5,
+        "pitch": 0,
+        "fov": 70
+      },
+      "pitchLimits": {
+        "min": -40,
+        "max": 40
+      },
+      "pois": [
+        {
+          "id": "poi-2",
+          "position": { "yaw": 0.5, "pitch": 0.1 },
+          "title": "Sofa-Ecke",
+          "description": "Gemütliche Sitzecke mit Blick auf den Fernseher",
+          "icon": "info"
+        }
+      ],
+      "navArrows": [
+        {
+          "id": "arrow-3",
+          "position": { "yaw": 3.0, "pitch": -0.25 },
+          "targetPanoramaId": "scene-1",
+          "label": "Zurück zum Eingang"
+        },
+        {
+          "id": "arrow-4",
+          "position": { "yaw": -0.8, "pitch": -0.2 },
+          "targetPanoramaId": "scene-3",
+          "label": "Küche"
+        }
+      ]
+    },
+    {
+      "id": "scene-3",
+      "name": "Küche",
+      "description": "Die moderne Küche",
+      "tilesPath": "/test-assets/tiles/sample/",
+      "previewPath": "/test-assets/tiles/sample/preview.webp",
+      "initialView": {
+        "yaw": -0.5,
+        "pitch": 0,
+        "fov": 70
+      },
+      "pitchLimits": {
+        "min": -30,
+        "max": 30
+      },
+      "pois": [],
+      "navArrows": [
+        {
+          "id": "arrow-5",
+          "position": { "yaw": 2.5, "pitch": -0.25 },
+          "targetPanoramaId": "scene-1",
+          "label": "Eingang"
+        },
+        {
+          "id": "arrow-6",
+          "position": { "yaw": 0.8, "pitch": -0.2 },
+          "targetPanoramaId": "scene-2",
+          "label": "Wohnzimmer"
+        }
+      ]
+    }
+  ]
+}

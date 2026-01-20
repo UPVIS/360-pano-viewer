@@ -720,6 +720,178 @@
     }
     
     /* ==========================================
+       FLOOR ARROWS (3D Perspective)
+    ========================================== */
+    .floor-arrow {
+      width: 80px;
+      height: 50px;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.2s ease;
+    }
+    
+    .floor-arrow:hover {
+      transform: scale(1.1);
+    }
+    
+    .floor-arrow-shape {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(200,200,200,0.9) 100%);
+      clip-path: polygon(50% 0%, 100% 70%, 80% 70%, 80% 100%, 20% 100%, 20% 70%, 0% 70%);
+      transform: perspective(150px) rotateX(55deg);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      animation: floor-arrow-pulse 2s ease-in-out infinite;
+    }
+    
+    .floor-arrow-label {
+      position: absolute;
+      bottom: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.6875rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .floor-arrow:hover .floor-arrow-label {
+      opacity: 1;
+    }
+    
+    @keyframes floor-arrow-pulse {
+      0%, 100% {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+      50% {
+        box-shadow: 0 15px 40px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+    }
+    
+    /* ==========================================
+       TRANSITION OVERLAY
+    ========================================== */
+    .transition-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-primary);
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.4s ease;
+    }
+    
+    .transition-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .transition-overlay img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: blur(20px);
+      transform: scale(1.1);
+    }
+    
+    .transition-overlay .transition-spinner {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    /* ==========================================
+       SCENE STRIP ENHANCED
+    ========================================== */
+    .scene-thumb {
+      position: relative;
+      user-select: none;
+    }
+    
+    .scene-thumb.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    
+    .scene-thumb.drag-over {
+      border-color: var(--accent-color);
+      transform: scale(1.05);
+    }
+    
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 0.25rem;
+      min-width: 140px;
+      z-index: 200;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.95);
+      transition: all 0.15s ease;
+    }
+    
+    .context-menu.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+    
+    .context-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      transition: background 0.1s;
+    }
+    
+    .context-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .context-menu-item.danger {
+      color: #ef4444;
+    }
+    
+    .context-menu-item svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+    
+    .context-menu-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 0.25rem 0;
+    }
+    
+    /* ==========================================
        KEYBOARD HINT (shown briefly)
     ========================================== */
     .keyboard-hint {
@@ -991,6 +1163,29 @@
     <div class="keyboard-hint" id="keyboard-hint">
       <kbd>F</kbd> Vollbild &nbsp; <kbd>R</kbd> Rotation &nbsp; <kbd>+</kbd><kbd>-</kbd> Zoom &nbsp; <kbd>ESC</kbd> Schließen
     </div>
+    
+    <!-- Transition Overlay -->
+    <div class="transition-overlay" id="transition-overlay">
+      <img id="transition-preview" src="" alt="">
+      <div class="transition-spinner"></div>
+    </div>
+    
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu">
+      <button class="context-menu-item" data-action="rename">
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        <span>Umbenennen</span>
+      </button>
+      <button class="context-menu-item" data-action="set-start">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <span>Als Start setzen</span>
+      </button>
+      <div class="context-menu-divider"></div>
+      <button class="context-menu-item danger" data-action="delete">
+        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        <span>Löschen</span>
+      </button>
+    </div>
   </div>
 
   <!-- Photo Sphere Viewer JS -->
@@ -1191,8 +1386,10 @@
       state.markersPlugin = state.viewer.getPlugin(MarkersPlugin);
       state.autorotatePlugin = state.viewer.getPlugin(AutorotatePlugin);
       
-      // Add demo markers
-      addDemoMarkers();
+      // Add demo markers (only if no project loaded)
+      if (!project) {
+        addDemoMarkers();
+      }
       
       // Hide loading overlay
       elements.loadingOverlay.classList.add('loaded');
@@ -1712,9 +1909,386 @@
     });
     
     // ==========================================
+    // PROJECT DATA
+    // ==========================================
+    let project = null;
+    
+    async function loadProject(url) {
+      try {
+        const response = await fetch(url);
+        project = await response.json();
+        console.log('Project loaded:', project.name);
+        return project;
+      } catch (error) {
+        console.error('Failed to load project:', error);
+        return null;
+      }
+    }
+    
+    function saveProject() {
+      if (!project) return;
+      
+      const dataStr = JSON.stringify(project, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.id || 'project'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Projekt exportiert');
+    }
+    
+    // ==========================================
+    // MULTI-PANORAMA SCENE MANAGEMENT
+    // ==========================================
+    function getCurrentPanorama() {
+      if (!project) return null;
+      return project.panoramas.find(p => p.id === state.currentScene);
+    }
+    
+    function getPanoramaById(id) {
+      if (!project) return null;
+      return project.panoramas.find(p => p.id === id);
+    }
+    
+    async function switchScene(targetSceneId, options = {}) {
+      const targetPano = getPanoramaById(targetSceneId);
+      if (!targetPano || targetSceneId === state.currentScene) return;
+      
+      const transitionOverlay = $('#transition-overlay');
+      const transitionPreview = $('#transition-preview');
+      
+      // Start transition animation
+      transitionPreview.src = targetPano.previewPath;
+      transitionOverlay.classList.add('active');
+      
+      // Wait for fade
+      await new Promise(r => setTimeout(r, 400));
+      
+      // Update state
+      state.currentScene = targetSceneId;
+      state.tilesLoaded = 0;
+      elements.tilesLoaded.textContent = '0';
+      
+      // Update pitch limits from panorama
+      CONFIG.pitchLimits.min = targetPano.pitchLimits?.min ?? -30;
+      CONFIG.pitchLimits.max = targetPano.pitchLimits?.max ?? 30;
+      elements.sliderPitchMin.value = CONFIG.pitchLimits.min;
+      elements.sliderPitchMax.value = CONFIG.pitchLimits.max;
+      elements.pitchMinValue.textContent = `${CONFIG.pitchLimits.min}°`;
+      elements.pitchMaxValue.textContent = `${CONFIG.pitchLimits.max}°`;
+      
+      // Load new panorama
+      const manifest = await fetch(`${targetPano.tilesPath}manifest.json`).then(r => r.json());
+      const highestLevel = manifest.levels[manifest.levels.length - 1];
+      
+      await state.viewer.setPanorama({
+        width: highestLevel.width,
+        cols: highestLevel.cols,
+        rows: highestLevel.rows,
+        baseUrl: targetPano.previewPath,
+        tileUrl: (col, row) => `${targetPano.tilesPath}level-${manifest.levels.length - 1}/row-${row}/tile-${col}.webp`
+      });
+      
+      // Rotate to initial view
+      state.viewer.rotate({
+        yaw: targetPano.initialView.yaw,
+        pitch: targetPano.initialView.pitch
+      });
+      state.viewer.zoom(50);
+      
+      // Update markers
+      updateMarkersForScene(targetPano);
+      
+      // Update scenes panel
+      updateScenesPanel();
+      
+      // Hide transition
+      await new Promise(r => setTimeout(r, 300));
+      transitionOverlay.classList.remove('active');
+      
+      showToast(`${targetPano.name}`);
+    }
+    
+    function updateMarkersForScene(panorama) {
+      if (!state.markersPlugin) return;
+      
+      // Clear existing markers
+      state.markersPlugin.clearMarkers();
+      
+      // Add POIs
+      (panorama.pois || []).forEach(poi => {
+        state.markersPlugin.addMarker({
+          id: poi.id,
+          position: poi.position,
+          html: `<div class="marker-poi" role="button" aria-label="${poi.title}">i</div>`,
+          anchor: 'center center',
+          tooltip: {
+            content: `<div class="tooltip-content"><h4>${poi.title}</h4>${poi.description ? `<p>${poi.description}</p>` : ''}</div>`,
+            position: 'top center',
+            trigger: 'hover'
+          },
+          data: { type: 'poi', ...poi }
+        });
+      });
+      
+      // Add Navigation Arrows (Floor Style)
+      (panorama.navArrows || []).forEach(arrow => {
+        const targetPano = getPanoramaById(arrow.targetPanoramaId);
+        const label = arrow.label || targetPano?.name || arrow.targetPanoramaId;
+        
+        state.markersPlugin.addMarker({
+          id: arrow.id,
+          position: arrow.position,
+          html: `
+            <div class="floor-arrow" role="button" aria-label="Navigation: ${label}">
+              <div class="floor-arrow-shape"></div>
+              <div class="floor-arrow-label">${label}</div>
+            </div>
+          `,
+          anchor: 'center center',
+          data: { type: 'nav', ...arrow }
+        });
+      });
+    }
+    
+    // ==========================================
+    // SCENES PANEL DYNAMIC
+    // ==========================================
+    function renderScenesPanel() {
+      if (!project) return;
+      
+      const panel = elements.scenesPanel;
+      panel.innerHTML = '';
+      
+      project.panoramas.forEach((pano, index) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'scene-thumb' + (pano.id === state.currentScene ? ' active' : '');
+        thumb.setAttribute('role', 'option');
+        thumb.setAttribute('aria-selected', pano.id === state.currentScene);
+        thumb.setAttribute('tabindex', pano.id === state.currentScene ? '0' : '-1');
+        thumb.setAttribute('data-scene', pano.id);
+        thumb.setAttribute('draggable', 'true');
+        
+        thumb.innerHTML = `
+          <img src="${pano.previewPath}" alt="${pano.name}">
+          <span class="scene-thumb-label">${pano.name}</span>
+        `;
+        
+        // Click to switch
+        thumb.addEventListener('click', () => switchScene(pano.id));
+        
+        // Keyboard
+        thumb.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            switchScene(pano.id);
+          }
+        });
+        
+        // Context menu
+        thumb.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showContextMenu(e.clientX, e.clientY, pano.id);
+        });
+        
+        // Drag and drop
+        thumb.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', pano.id);
+          thumb.classList.add('dragging');
+        });
+        
+        thumb.addEventListener('dragend', () => {
+          thumb.classList.remove('dragging');
+        });
+        
+        thumb.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          thumb.classList.add('drag-over');
+        });
+        
+        thumb.addEventListener('dragleave', () => {
+          thumb.classList.remove('drag-over');
+        });
+        
+        thumb.addEventListener('drop', (e) => {
+          e.preventDefault();
+          thumb.classList.remove('drag-over');
+          const fromId = e.dataTransfer.getData('text/plain');
+          reorderPanoramas(fromId, pano.id);
+        });
+        
+        panel.appendChild(thumb);
+      });
+    }
+    
+    function updateScenesPanel() {
+      $$('.scene-thumb').forEach(thumb => {
+        const isActive = thumb.dataset.scene === state.currentScene;
+        thumb.classList.toggle('active', isActive);
+        thumb.setAttribute('aria-selected', isActive);
+        thumb.tabIndex = isActive ? 0 : -1;
+      });
+    }
+    
+    function reorderPanoramas(fromId, toId) {
+      if (!project || fromId === toId) return;
+      
+      const fromIndex = project.panoramas.findIndex(p => p.id === fromId);
+      const toIndex = project.panoramas.findIndex(p => p.id === toId);
+      
+      if (fromIndex === -1 || toIndex === -1) return;
+      
+      const [removed] = project.panoramas.splice(fromIndex, 1);
+      project.panoramas.splice(toIndex, 0, removed);
+      
+      renderScenesPanel();
+      showToast('Reihenfolge geändert');
+    }
+    
+    // ==========================================
+    // CONTEXT MENU
+    // ==========================================
+    let contextMenuTarget = null;
+    const contextMenu = $('#context-menu');
+    
+    function showContextMenu(x, y, sceneId) {
+      contextMenuTarget = sceneId;
+      contextMenu.style.left = `${x}px`;
+      contextMenu.style.top = `${y}px`;
+      contextMenu.classList.add('visible');
+    }
+    
+    function hideContextMenu() {
+      contextMenu.classList.remove('visible');
+      contextMenuTarget = null;
+    }
+    
+    document.addEventListener('click', (e) => {
+      if (!contextMenu.contains(e.target)) {
+        hideContextMenu();
+      }
+    });
+    
+    $$('.context-menu-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const action = item.dataset.action;
+        if (!contextMenuTarget || !project) return;
+        
+        switch (action) {
+          case 'rename':
+            const pano = getPanoramaById(contextMenuTarget);
+            if (pano) {
+              const newName = prompt('Neuer Name:', pano.name);
+              if (newName && newName.trim()) {
+                pano.name = newName.trim();
+                renderScenesPanel();
+                showToast('Umbenannt');
+              }
+            }
+            break;
+            
+          case 'set-start':
+            const panoToMove = project.panoramas.find(p => p.id === contextMenuTarget);
+            if (panoToMove) {
+              project.panoramas = [panoToMove, ...project.panoramas.filter(p => p.id !== contextMenuTarget)];
+              renderScenesPanel();
+              showToast('Als Start gesetzt');
+            }
+            break;
+            
+          case 'delete':
+            if (project.panoramas.length <= 1) {
+              showToast('Letzte Szene kann nicht gelöscht werden');
+              break;
+            }
+            if (confirm('Szene wirklich löschen?')) {
+              project.panoramas = project.panoramas.filter(p => p.id !== contextMenuTarget);
+              if (state.currentScene === contextMenuTarget) {
+                switchScene(project.panoramas[0].id);
+              }
+              renderScenesPanel();
+              showToast('Szene gelöscht');
+            }
+            break;
+        }
+        
+        hideContextMenu();
+      });
+    });
+    
+    // ==========================================
+    // MARKER CLICK HANDLER
+    // ==========================================
+    function setupMarkerClickHandler() {
+      if (!state.markersPlugin) return;
+      
+      state.markersPlugin.addEventListener('select-marker', ({ marker }) => {
+        const data = marker.config.data;
+        if (!data) return;
+        
+        if (data.type === 'nav' && data.targetPanoramaId) {
+          switchScene(data.targetPanoramaId);
+        } else if (data.type === 'poi') {
+          // POI click - could open modal in future
+          showToast(data.title || 'Info');
+        }
+      });
+    }
+    
+    // ==========================================
+    // INIT WITH PROJECT
+    // ==========================================
+    async function initWithProject() {
+      // Load project
+      project = await loadProject('/test-assets/demo-project.json');
+      
+      if (!project || !project.panoramas.length) {
+        console.error('No panoramas in project');
+        initViewer(); // Fallback to demo mode
+        return;
+      }
+      
+      const firstPano = project.panoramas[0];
+      state.currentScene = firstPano.id;
+      
+      // Update config from project
+      CONFIG.pitchLimits.min = firstPano.pitchLimits?.min ?? -30;
+      CONFIG.pitchLimits.max = firstPano.pitchLimits?.max ?? 30;
+      
+      // Load manifest for first panorama
+      const manifest = await fetch(`${firstPano.tilesPath}manifest.json`).then(r => r.json());
+      const highestLevel = manifest.levels[manifest.levels.length - 1];
+      
+      // Update tiles config
+      CONFIG.tiles = {
+        baseUrl: firstPano.previewPath,
+        width: highestLevel.width,
+        cols: highestLevel.cols,
+        rows: highestLevel.rows,
+        tileUrl: (col, row) => `${firstPano.tilesPath}level-${manifest.levels.length - 1}/row-${row}/tile-${col}.webp`
+      };
+      
+      CONFIG.initialView = firstPano.initialView;
+      
+      // Render scenes panel
+      renderScenesPanel();
+      
+      // Init viewer
+      initViewer();
+      
+      // Setup marker handler after viewer is ready
+      state.viewer.addEventListener('ready', () => {
+        updateMarkersForScene(firstPano);
+        setupMarkerClickHandler();
+      });
+    }
+    
+    // ==========================================
     // INIT
     // ==========================================
-    initViewer();
+    initWithProject();
   </script>
 </body>
 </html>
