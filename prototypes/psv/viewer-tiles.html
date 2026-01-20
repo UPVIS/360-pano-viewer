@@ -1396,44 +1396,23 @@
     // ==========================================
     
     /**
-     * Calculate zoom range for a given level index
-     * Distributes zoom range evenly across all levels
-     */
-    function getZoomRangeForLevel(levelIndex, totalLevels) {
-      // For 3 levels: [0,35], [35,65], [65,100]
-      // Low zoom = low res, High zoom = high res
-      const step = 100 / totalLevels;
-      const min = Math.round(levelIndex * step);
-      const max = levelIndex === totalLevels - 1 ? 100 : Math.round((levelIndex + 1) * step);
-      return [min, max];
-    }
-    
-    /**
-     * Build PSV-compatible levels config from manifest
-     */
-    function buildLevelsConfig(manifest, tilesPath) {
-      return manifest.levels.map((lvl, idx) => ({
-        id: `level-${idx}`,
-        width: lvl.width,
-        cols: lvl.cols,
-        rows: lvl.rows,
-        zoomRange: getZoomRangeForLevel(idx, manifest.levels.length)
-      }));
-    }
-    
-    /**
-     * Build complete panorama config for PSV with multi-level support
+     * Build panorama config for PSV
+     * Uses medium resolution (level-1) as good balance between quality and speed
      */
     function buildPanoramaConfig(pano, manifest) {
-      const levels = buildLevelsConfig(manifest, pano.tilesPath);
+      // Use level-1 (4K, 32 tiles) as default - good balance
+      // Level-0 is too blurry, Level-2 is too slow for initial load
+      const levelIndex = Math.min(1, manifest.levels.length - 1);
+      const level = manifest.levels[levelIndex];
+      
+      console.log(`[Config] Using level-${levelIndex}: ${level.width}px (${level.cols}x${level.rows} tiles)`);
       
       return {
         baseUrl: pano.previewPath,
-        tileUrl: (col, row, level) => {
-          // level contains the id we set (e.g., "level-0", "level-1", etc.)
-          return `${pano.tilesPath}${level.id}/row-${row}/tile-${col}.webp`;
-        },
-        levels: levels
+        width: level.width,
+        cols: level.cols,
+        rows: level.rows,
+        tileUrl: (col, row) => `${pano.tilesPath}level-${levelIndex}/row-${row}/tile-${col}.webp`
       };
     }
     
