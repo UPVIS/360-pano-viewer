@@ -2834,17 +2834,21 @@
       CONFIG.pitchLimits.min = firstPano.pitchLimits?.min ?? -30;
       CONFIG.pitchLimits.max = firstPano.pitchLimits?.max ?? 30;
       
-      // Load manifest for first panorama
+      // Load manifest for first panorama and cache it
       const manifest = await fetch(`${firstPano.tilesPath}manifest.json`).then(r => r.json());
-      const highestLevel = manifest.levels[manifest.levels.length - 1];
+      tileCache.manifests.set(firstPano.id, manifest);
       
-      // Update tiles config
+      // OPTIMIZATION: Start with LOW-RES level (like switchScene does)
+      const lowLevel = manifest.levels[LOADING_CONFIG.initialLevel];
+      state.currentLevel = LOADING_CONFIG.initialLevel;
+      
+      // Update tiles config with LOW-RES
       CONFIG.tiles = {
         baseUrl: firstPano.previewPath,
-        width: highestLevel.width,
-        cols: highestLevel.cols,
-        rows: highestLevel.rows,
-        tileUrl: (col, row) => `${firstPano.tilesPath}level-${manifest.levels.length - 1}/row-${row}/tile-${col}.webp`
+        width: lowLevel.width,
+        cols: lowLevel.cols,
+        rows: lowLevel.rows,
+        tileUrl: (col, row) => `${firstPano.tilesPath}level-${LOADING_CONFIG.initialLevel}/row-${row}/tile-${col}.webp`
       };
       
       CONFIG.initialView = firstPano.initialView;
@@ -2859,6 +2863,14 @@
       state.viewer.addEventListener('ready', () => {
         updateMarkersForScene(firstPano);
         setupMarkerClickHandler();
+        
+        // Upgrade to high-res after initial load
+        setTimeout(() => {
+          upgradeToHighRes(firstPano.id);
+        }, LOADING_CONFIG.upgradeDelay);
+        
+        // Preload adjacent scenes
+        preloadAdjacentScenes(firstPano.id);
       });
     }
     
