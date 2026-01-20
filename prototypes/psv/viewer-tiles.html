@@ -1176,6 +1176,26 @@
           <span class="stat-value" id="resolution-info">--</span>
         </div>
       </div>
+      
+      <div class="stat-section">
+        <div class="stat-section-title">CACHE</div>
+        <div class="stat-row">
+          <span class="stat-label">Level</span>
+          <span class="stat-value" id="current-level">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Cached</span>
+          <span class="stat-value" id="cache-size">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Hit Rate</span>
+          <span class="stat-value" id="cache-hit-rate">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Preloaded</span>
+          <span class="stat-value" id="preloaded-scenes">0</span>
+        </div>
+      </div>
     </div>
     
     <!-- Top Right Controls -->
@@ -1363,6 +1383,78 @@
     };
     
     // ==========================================
+    // LOADING CONFIGURATION
+    // ==========================================
+    const LOADING_CONFIG = {
+      initialLevel: 0,           // Start mit low-res (8 Tiles statt 128)
+      upgradeDelay: 150,         // ms nach Transition bevor Upgrade
+      preloadOnHover: true,      // Preload bei Hover auf Thumbnails
+      preloadAdjacentCount: 2,   // Anzahl preloaded Szenen
+      cacheMaxTiles: 150,        // Max cached Tiles
+      transitionHideOn: 'preview' // 'preview' | 'lowres' | 'tiles'
+    };
+    
+    // ==========================================
+    // TILE CACHE SYSTEM
+    // ==========================================
+    const tileCache = {
+      previews: new Map(),       // sceneId -> Image (preloaded)
+      manifests: new Map(),      // sceneId -> manifest JSON
+      tiles: new Map(),          // "sceneId-level-row-col" -> Image
+      accessOrder: [],           // LRU tracking
+      hits: 0,
+      misses: 0,
+      
+      // Get or create tile
+      getTile(key) {
+        if (this.tiles.has(key)) {
+          this.hits++;
+          // Move to end for LRU
+          this.accessOrder = this.accessOrder.filter(k => k !== key);
+          this.accessOrder.push(key);
+          return this.tiles.get(key);
+        }
+        this.misses++;
+        return null;
+      },
+      
+      // Add tile to cache with LRU eviction
+      setTile(key, img) {
+        if (this.tiles.size >= LOADING_CONFIG.cacheMaxTiles) {
+          // Evict oldest
+          const oldestKey = this.accessOrder.shift();
+          if (oldestKey) this.tiles.delete(oldestKey);
+        }
+        this.tiles.set(key, img);
+        this.accessOrder.push(key);
+      },
+      
+      // Get cache stats
+      getStats() {
+        return {
+          previews: this.previews.size,
+          manifests: this.manifests.size,
+          tiles: this.tiles.size,
+          hits: this.hits,
+          misses: this.misses,
+          hitRate: this.hits + this.misses > 0 
+            ? Math.round((this.hits / (this.hits + this.misses)) * 100) 
+            : 0
+        };
+      },
+      
+      // Clear cache
+      clear() {
+        this.previews.clear();
+        this.manifests.clear();
+        this.tiles.clear();
+        this.accessOrder = [];
+        this.hits = 0;
+        this.misses = 0;
+      }
+    };
+    
+    // ==========================================
     // LOAD SETTINGS FROM LOCALSTORAGE
     // ==========================================
     function loadSettings() {
@@ -1420,6 +1512,7 @@
       scenesVisible: false,
       settingsVisible: false,
       currentScene: 'scene-1',
+      currentLevel: 0,           // Current resolution level
       tilesLoaded: 0,
       activeRequests: 0,
       fps: 0,
@@ -1427,7 +1520,9 @@
       lastFrameTime: performance.now(),
       frameCount: 0,
       showStats: CONFIG.showStats,
-      gpuInfo: null
+      gpuInfo: null,
+      preloadedScenes: new Set(), // Scenes that have been preloaded
+      isUpgrading: false          // Currently upgrading resolution
     };
     
     // ==========================================
@@ -1460,6 +1555,11 @@
       memoryUsage: $('#memory-usage'),
       gpuInfo: $('#gpu-info'),
       resolutionInfo: $('#resolution-info'),
+      // Cache stats
+      currentLevel: $('#current-level'),
+      cacheSize: $('#cache-size'),
+      cacheHitRate: $('#cache-hit-rate'),
+      preloadedScenes: $('#preloaded-scenes'),
       // Settings
       toggleAutorotate: $('#toggle-autorotate'),
       toggleStats: $('#toggle-stats'),
@@ -1559,6 +1659,17 @@
       // Initialize settings from saved values
       initializeSettings();
       
+      // Setup zoom-based resolution upgrade
+      setupZoomUpgradeListener();
+      
+      // Preload all previews for instant transitions
+      preloadAllPreviews();
+      
+      // Preload adjacent scenes
+      if (project) {
+        preloadAdjacentScenes(state.currentScene);
+      }
+      
       // Initial UI update
       updateUI();
       
@@ -1605,6 +1716,29 @@
       // Stats overlay
       elements.statYaw.textContent = `${yawDeg}°`;
       elements.statPitch.textContent = `${pitchDeg}°`;
+      
+      // Cache stats
+      updateCacheStats();
+    }
+    
+    function updateCacheStats() {
+      const cacheStats = tileCache.getStats();
+      
+      elements.currentLevel.textContent = `L${state.currentLevel}`;
+      elements.cacheSize.textContent = `${cacheStats.tiles}/${LOADING_CONFIG.cacheMaxTiles}`;
+      elements.cacheHitRate.textContent = `${cacheStats.hitRate}%`;
+      elements.preloadedScenes.textContent = `${state.preloadedScenes.size}`;
+      
+      // Color code hit rate
+      if (cacheStats.hitRate >= 70) {
+        elements.cacheHitRate.classList.remove('warn', 'error');
+      } else if (cacheStats.hitRate >= 40) {
+        elements.cacheHitRate.classList.add('warn');
+        elements.cacheHitRate.classList.remove('error');
+      } else {
+        elements.cacheHitRate.classList.add('error');
+        elements.cacheHitRate.classList.remove('warn');
+      }
     }
     
     function initializeSettings() {
@@ -2098,23 +2232,155 @@
       return project.panoramas.find(p => p.id === id);
     }
     
+    // ==========================================
+    // PRELOADING SYSTEM
+    // ==========================================
+    
+    /**
+     * Preload a scene's preview and optionally low-res tiles
+     */
+    async function preloadScene(sceneId, includeTiles = true) {
+      const pano = getPanoramaById(sceneId);
+      if (!pano) return;
+      
+      // Already preloaded?
+      if (state.preloadedScenes.has(sceneId)) return;
+      
+      console.log(`[Preload] Starting preload for: ${pano.name}`);
+      
+      try {
+        // 1. Preload preview image
+        if (!tileCache.previews.has(sceneId)) {
+          const previewImg = new Image();
+          previewImg.src = pano.previewPath;
+          await previewImg.decode().catch(() => {});
+          tileCache.previews.set(sceneId, previewImg);
+        }
+        
+        // 2. Preload manifest
+        if (!tileCache.manifests.has(sceneId)) {
+          const manifest = await fetch(`${pano.tilesPath}manifest.json`).then(r => r.json());
+          tileCache.manifests.set(sceneId, manifest);
+        }
+        
+        // 3. Preload low-res tiles (level 0) in background
+        if (includeTiles) {
+          const manifest = tileCache.manifests.get(sceneId);
+          const lowLevel = manifest.levels[0];
+          
+          const tilePromises = [];
+          for (let row = 0; row < lowLevel.rows; row++) {
+            for (let col = 0; col < lowLevel.cols; col++) {
+              const key = `${sceneId}-0-${row}-${col}`;
+              if (!tileCache.tiles.has(key)) {
+                const img = new Image();
+                img.src = `${pano.tilesPath}level-0/row-${row}/tile-${col}.webp`;
+                tilePromises.push(
+                  img.decode()
+                    .then(() => tileCache.setTile(key, img))
+                    .catch(() => {})
+                );
+              }
+            }
+          }
+          
+          // Don't await - let tiles load in background
+          Promise.all(tilePromises).then(() => {
+            console.log(`[Preload] Low-res tiles cached: ${pano.name}`);
+          });
+        }
+        
+        state.preloadedScenes.add(sceneId);
+      } catch (err) {
+        console.warn(`[Preload] Failed for ${sceneId}:`, err);
+      }
+    }
+    
+    /**
+     * Preload scenes adjacent to current + linked via navArrows
+     */
+    function preloadAdjacentScenes(currentSceneId) {
+      if (!project) return;
+      
+      const currentIndex = project.panoramas.findIndex(p => p.id === currentSceneId);
+      if (currentIndex === -1) return;
+      
+      const scenesToPreload = [];
+      
+      // Add previous and next scenes
+      for (let offset = 1; offset <= LOADING_CONFIG.preloadAdjacentCount; offset++) {
+        const prevIndex = currentIndex - offset;
+        const nextIndex = currentIndex + offset;
+        
+        if (prevIndex >= 0) {
+          scenesToPreload.push(project.panoramas[prevIndex].id);
+        }
+        if (nextIndex < project.panoramas.length) {
+          scenesToPreload.push(project.panoramas[nextIndex].id);
+        }
+      }
+      
+      // Also preload scenes linked via navArrows
+      const currentPano = getPanoramaById(currentSceneId);
+      if (currentPano?.navArrows) {
+        currentPano.navArrows.forEach(arrow => {
+          if (!scenesToPreload.includes(arrow.targetPanoramaId)) {
+            scenesToPreload.push(arrow.targetPanoramaId);
+          }
+        });
+      }
+      
+      // Preload in background with staggered timing
+      scenesToPreload.forEach((sceneId, idx) => {
+        setTimeout(() => preloadScene(sceneId, true), 100 + idx * 50);
+      });
+    }
+    
+    /**
+     * Preload all scene previews at startup
+     */
+    async function preloadAllPreviews() {
+      if (!project) return;
+      
+      const promises = project.panoramas.map(pano => {
+        if (!tileCache.previews.has(pano.id)) {
+          const img = new Image();
+          img.src = pano.previewPath;
+          return img.decode()
+            .then(() => tileCache.previews.set(pano.id, img))
+            .catch(() => {});
+        }
+        return Promise.resolve();
+      });
+      
+      await Promise.all(promises);
+      console.log(`[Preload] All ${tileCache.previews.size} previews cached`);
+    }
+    
+    // ==========================================
+    // SCENE SWITCHING (OPTIMIZED)
+    // ==========================================
+    
     async function switchScene(targetSceneId, options = {}) {
       const targetPano = getPanoramaById(targetSceneId);
       if (!targetPano || targetSceneId === state.currentScene) return;
       
+      const switchStart = performance.now();
       const transitionOverlay = $('#transition-overlay');
       const transitionPreview = $('#transition-preview');
       
-      // Start transition animation
-      transitionPreview.src = targetPano.previewPath;
+      // Use cached preview if available for instant display
+      const cachedPreview = tileCache.previews.get(targetSceneId);
+      transitionPreview.src = cachedPreview?.src || targetPano.previewPath;
       transitionOverlay.classList.add('active');
       
-      // Wait for fade
-      await new Promise(r => setTimeout(r, 400));
+      // Very short fade for perceived speed
+      await new Promise(r => setTimeout(r, 150));
       
       // Update state
       state.currentScene = targetSceneId;
       state.tilesLoaded = 0;
+      state.currentLevel = LOADING_CONFIG.initialLevel;
       elements.tilesLoaded.textContent = '0';
       
       // Update pitch limits from panorama
@@ -2125,16 +2391,22 @@
       elements.pitchMinValue.textContent = `${CONFIG.pitchLimits.min}°`;
       elements.pitchMaxValue.textContent = `${CONFIG.pitchLimits.max}°`;
       
-      // Load new panorama
-      const manifest = await fetch(`${targetPano.tilesPath}manifest.json`).then(r => r.json());
-      const highestLevel = manifest.levels[manifest.levels.length - 1];
+      // Get manifest (from cache or fetch)
+      let manifest = tileCache.manifests.get(targetSceneId);
+      if (!manifest) {
+        manifest = await fetch(`${targetPano.tilesPath}manifest.json`).then(r => r.json());
+        tileCache.manifests.set(targetSceneId, manifest);
+      }
+      
+      // OPTIMIZATION: Start with LOW-RES level (8 tiles instead of 128!)
+      const lowLevel = manifest.levels[LOADING_CONFIG.initialLevel];
       
       await state.viewer.setPanorama({
-        width: highestLevel.width,
-        cols: highestLevel.cols,
-        rows: highestLevel.rows,
+        width: lowLevel.width,
+        cols: lowLevel.cols,
+        rows: lowLevel.rows,
         baseUrl: targetPano.previewPath,
-        tileUrl: (col, row) => `${targetPano.tilesPath}level-${manifest.levels.length - 1}/row-${row}/tile-${col}.webp`
+        tileUrl: (col, row) => `${targetPano.tilesPath}level-${LOADING_CONFIG.initialLevel}/row-${row}/tile-${col}.webp`
       });
       
       // Rotate to initial view
@@ -2150,11 +2422,90 @@
       // Update scenes panel
       updateScenesPanel();
       
-      // Hide transition
-      await new Promise(r => setTimeout(r, 300));
+      // Hide transition IMMEDIATELY after low-res is ready
       transitionOverlay.classList.remove('active');
       
+      const switchTime = Math.round(performance.now() - switchStart);
+      console.log(`[Switch] ${targetPano.name} loaded in ${switchTime}ms (level-${LOADING_CONFIG.initialLevel})`);
       showToast(`${targetPano.name}`);
+      
+      // BACKGROUND: Upgrade to high-res after delay
+      setTimeout(() => {
+        upgradeToHighRes(targetSceneId);
+      }, LOADING_CONFIG.upgradeDelay);
+      
+      // Preload adjacent scenes
+      preloadAdjacentScenes(targetSceneId);
+    }
+    
+    /**
+     * Upgrade current scene to higher resolution based on zoom level
+     */
+    async function upgradeToHighRes(sceneId) {
+      // Don't upgrade if we switched to a different scene
+      if (sceneId !== state.currentScene) return;
+      if (state.isUpgrading) return;
+      
+      const pano = getPanoramaById(sceneId);
+      if (!pano) return;
+      
+      const manifest = tileCache.manifests.get(sceneId);
+      if (!manifest) return;
+      
+      // Determine target level based on zoom
+      const zoomLevel = state.viewer.getZoomLevel();
+      let targetLevelIndex;
+      
+      if (zoomLevel > 65) {
+        // High zoom = need highest resolution
+        targetLevelIndex = manifest.levels.length - 1;
+      } else if (zoomLevel > 35) {
+        // Medium zoom = medium resolution
+        targetLevelIndex = Math.min(1, manifest.levels.length - 1);
+      } else {
+        // Low zoom = low resolution is fine
+        targetLevelIndex = 0;
+      }
+      
+      // Only upgrade if needed
+      if (targetLevelIndex <= state.currentLevel) return;
+      
+      state.isUpgrading = true;
+      const targetLevel = manifest.levels[targetLevelIndex];
+      
+      console.log(`[Upgrade] ${pano.name}: level-${state.currentLevel} → level-${targetLevelIndex} (zoom: ${Math.round(zoomLevel)}%)`);
+      
+      try {
+        await state.viewer.setPanorama({
+          width: targetLevel.width,
+          cols: targetLevel.cols,
+          rows: targetLevel.rows,
+          baseUrl: pano.previewPath,
+          tileUrl: (col, row) => `${pano.tilesPath}level-${targetLevelIndex}/row-${row}/tile-${col}.webp`
+        });
+        
+        state.currentLevel = targetLevelIndex;
+        console.log(`[Upgrade] Complete: now at level-${targetLevelIndex}`);
+      } catch (err) {
+        console.warn('[Upgrade] Failed:', err);
+      } finally {
+        state.isUpgrading = false;
+      }
+    }
+    
+    // Listen for zoom changes to potentially upgrade resolution
+    function setupZoomUpgradeListener() {
+      if (!state.viewer) return;
+      
+      let upgradeTimeout = null;
+      
+      state.viewer.addEventListener('zoom-updated', () => {
+        // Debounce upgrade checks
+        if (upgradeTimeout) clearTimeout(upgradeTimeout);
+        upgradeTimeout = setTimeout(() => {
+          upgradeToHighRes(state.currentScene);
+        }, 300);
+      });
     }
     
     function updateMarkersForScene(panorama) {
@@ -2251,6 +2602,15 @@
             switchScene(pano.id);
           }
         });
+        
+        // Hover preloading for instant transitions
+        if (LOADING_CONFIG.preloadOnHover) {
+          thumb.addEventListener('mouseenter', () => {
+            if (pano.id !== state.currentScene) {
+              preloadScene(pano.id, true);
+            }
+          });
+        }
         
         // Context menu (right click)
         thumb.addEventListener('contextmenu', (e) => {
