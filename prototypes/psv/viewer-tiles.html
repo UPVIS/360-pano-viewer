@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>360° Panorama Viewer (Tile-Streaming)</title>
+  
+  <!-- Photo Sphere Viewer CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.min.css">
+  
+  <style>
+    :root {
+      --accent-color: #4ade80;
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text-primary: #ffffff;
+      --text-secondary: #888888;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --glass-bg: rgba(0, 0, 0, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --control-size: 44px;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      touch-action: none;
+    }
+    
+    #viewer-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #viewer { width: 100%; height: 100%; }
+    
+    /* Loading with blur-up */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.8s ease-out;
+    }
+    
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #loading-preview {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: blur(30px);
+      transform: scale(1.2);
+      opacity: 0.6;
+      transition: filter 0.5s, opacity 0.5s;
+    }
+    
+    #loading-overlay.loaded #loading-preview {
+      filter: blur(0);
+      opacity: 1;
+    }
+    
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      z-index: 1;
+    }
+    
+    .loading-text {
+      margin-top: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      z-index: 1;
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Stats overlay */
+    .stats-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+    }
+    
+    .stats-overlay .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .stats-overlay .stat-row:last-child { margin-bottom: 0; }
+    
+    .stats-overlay .stat-value {
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+    
+    /* Controls */
+    .controls-container {
+      position: absolute;
+      z-index: 50;
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .controls-top-right {
+      top: 1rem;
+      right: 1rem;
+    }
+    
+    .controls-bottom {
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    .controls-bottom-left {
+      bottom: 1rem;
+      left: 1rem;
+    }
+    
+    .control-btn {
+      width: var(--control-size);
+      height: var(--control-size);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+    }
+    
+    .control-btn:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    
+    .control-btn:active { transform: scale(0.95); }
+    
+    .control-btn.active {
+      background: var(--accent-color);
+      color: #000;
+      border-color: var(--accent-color);
+    }
+    
+    .control-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    
+    /* Compass */
+    .compass {
+      width: 60px;
+      height: 60px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      position: relative;
+    }
+    
+    .compass-needle {
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(to bottom, #ef4444 50%, #fff 50%);
+      border-radius: 2px;
+      transition: transform 0.1s ease-out;
+    }
+    
+    .compass-n {
+      position: absolute;
+      top: 4px;
+      font-size: 0.625rem;
+      font-weight: bold;
+      color: #ef4444;
+    }
+    
+    /* Markers */
+    .marker-poi {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-color);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #000;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      transition: transform 0.2s;
+    }
+    
+    .marker-poi:hover { transform: scale(1.15); }
+    
+    .marker-nav {
+      width: 48px;
+      height: 48px;
+      background: rgba(59, 130, 246, 0.9);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 24px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.2s;
+      animation: pulse 2s infinite;
+    }
+    
+    .marker-nav:hover {
+      transform: scale(1.15);
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+      50% { box-shadow: 0 4px 25px rgba(59, 130, 246, 0.7); }
+    }
+    
+    /* Tooltip */
+    .psv-tooltip {
+      background: var(--glass-bg) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 0.5rem !important;
+      backdrop-filter: blur(10px) !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewer-container">
+    <!-- Loading Overlay with Blur-up -->
+    <div id="loading-overlay">
+      <img id="loading-preview" src="/test-assets/tiles/sample/preview.webp" alt="">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Lade Panorama...</div>
+    </div>
+    
+    <div id="viewer"></div>
+    
+    <!-- Stats Overlay -->
+    <div class="stats-overlay">
+      <div class="stat-row">
+        <span>Modus:</span>
+        <span class="stat-value">Tile-Streaming</span>
+      </div>
+      <div class="stat-row">
+        <span>Tiles geladen:</span>
+        <span class="stat-value" id="tiles-loaded">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Zoom-Level:</span>
+        <span class="stat-value" id="zoom-level">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Ladezeit:</span>
+        <span class="stat-value" id="load-time">-</span>
+      </div>
+    </div>
+    
+    <!-- Controls -->
+    <div class="controls-container controls-top-right">
+      <button class="control-btn" id="btn-fullscreen" title="Vollbild">
+        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+    
+    <div class="controls-container controls-bottom">
+      <button class="control-btn" id="btn-zoom-out" title="Herauszoomen">
+        <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-autorotate" title="Auto-Rotation">
+        <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-zoom-in" title="Hineinzoomen">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
+    </div>
+    
+    <div class="controls-container controls-bottom-left">
+      <div class="compass" id="compass">
+        <span class="compass-n">N</span>
+        <div class="compass-needle" id="compass-needle"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.min.js",
+        "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.min.js",
+        "@photo-sphere-viewer/equirectangular-tiles-adapter": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-tiles-adapter@5/index.module.min.js",
+        "@photo-sphere-viewer/markers-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.module.min.js",
+        "@photo-sphere-viewer/autorotate-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/autorotate-plugin@5/index.module.min.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import { Viewer } from '@photo-sphere-viewer/core';
+    import { EquirectangularTilesAdapter } from '@photo-sphere-viewer/equirectangular-tiles-adapter';
+    import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+    import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
+    
+    // ==========================================
+    // TILE CONFIGURATION (from manifest)
+    // ==========================================
+    const TILES_CONFIG = {
+      baseUrl: '/test-assets/tiles/sample/preview.webp',
+      width: 4096,
+      cols: 8,
+      rows: 4,
+      levels: [
+        { width: 2048, cols: 4, rows: 2 },   // Level 0: Low
+        { width: 4096, cols: 8, rows: 4 },   // Level 1: Medium
+        { width: 4096, cols: 8, rows: 4 },   // Level 2: High
+      ],
+      tileUrl: (col, row, level) => {
+        return `/test-assets/tiles/sample/level-${level}/row-${row}/tile-${col}.webp`;
+      }
+    };
+    
+    // ==========================================
+    // STATE
+    // ==========================================
+    const startTime = performance.now();
+    let tilesLoaded = 0;
+    let viewer = null;
+    let markersPlugin = null;
+    let autorotatePlugin = null;
+    let isAutorotating = false;
+    
+    // ==========================================
+    // DOM
+    // ==========================================
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const compassNeedle = document.getElementById('compass-needle');
+    const tilesLoadedEl = document.getElementById('tiles-loaded');
+    const zoomLevelEl = document.getElementById('zoom-level');
+    const loadTimeEl = document.getElementById('load-time');
+    
+    // ==========================================
+    // INIT VIEWER WITH TILES ADAPTER
+    // ==========================================
+    viewer = new Viewer({
+      container: document.getElementById('viewer'),
+      adapter: [EquirectangularTilesAdapter, {
+        baseUrl: TILES_CONFIG.baseUrl,
+        width: TILES_CONFIG.width,
+        cols: TILES_CONFIG.cols,
+        rows: TILES_CONFIG.rows,
+        tileUrl: TILES_CONFIG.tileUrl,
+      }],
+      defaultYaw: 0,
+      defaultPitch: 0,
+      defaultZoomLvl: 50,
+      minFov: 30,
+      maxFov: 120,
+      navbar: false,
+      loadingTxt: '',
+      plugins: [
+        [MarkersPlugin, { markers: [] }],
+        [AutorotatePlugin, {
+          autorotateSpeed: '0.5rpm',
+          autostartDelay: null,
+          autostartOnIdle: false
+        }]
+      ]
+    });
+    
+    // ==========================================
+    // EVENT HANDLERS
+    // ==========================================
+    viewer.addEventListener('ready', () => {
+      const loadTime = Math.round(performance.now() - startTime);
+      loadTimeEl.textContent = `${loadTime}ms`;
+      
+      // Get plugins
+      markersPlugin = viewer.getPlugin(MarkersPlugin);
+      autorotatePlugin = viewer.getPlugin(AutorotatePlugin);
+      
+      // Add demo markers
+      addDemoMarkers();
+      
+      // Fade out loading overlay
+      loadingOverlay.classList.add('loaded');
+      setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+      
+      console.log('Viewer ready with tile streaming in', loadTime, 'ms');
+    });
+    
+    viewer.addEventListener('position-updated', () => {
+      updateCompass();
+    });
+    
+    viewer.addEventListener('zoom-updated', ({ zoomLevel }) => {
+      zoomLevelEl.textContent = `${Math.round(zoomLevel)}%`;
+    });
+    
+    // Track tile loading (approximate via network)
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+      const url = args[0];
+      if (typeof url === 'string' && url.includes('/tile-')) {
+        tilesLoaded++;
+        tilesLoadedEl.textContent = tilesLoaded;
+      }
+      return originalFetch.apply(this, args);
+    };
+    
+    // ==========================================
+    // UI FUNCTIONS
+    // ==========================================
+    function updateCompass() {
+      const position = viewer.getPosition();
+      const yawDeg = (position.yaw * 180) / Math.PI;
+      compassNeedle.style.transform = `rotate(${-yawDeg}deg)`;
+    }
+    
+    function addDemoMarkers() {
+      if (!markersPlugin) return;
+      
+      markersPlugin.addMarker({
+        id: 'poi-1',
+        position: { yaw: 0.8, pitch: 0 },
+        html: '<div class="marker-poi">i</div>',
+        anchor: 'center center',
+        tooltip: { content: 'Info-Punkt', position: 'top center', trigger: 'hover' },
+        data: { type: 'info' }
+      });
+      
+      markersPlugin.addMarker({
+        id: 'nav-1',
+        position: { yaw: -1.5, pitch: -0.1 },
+        html: '<div class="marker-nav">→</div>',
+        anchor: 'center center',
+        tooltip: { content: 'Nächster Raum', position: 'top center', trigger: 'hover' },
+        data: { type: 'nav', target: 'scene-2' }
+      });
+    }
+    
+    // ==========================================
+    // CONTROLS
+    // ==========================================
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      viewer.toggleFullscreen();
+    });
+    
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      const current = viewer.getZoomLevel();
+      viewer.zoom(Math.min(100, current + 10));
+    });
+    
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      const current = viewer.getZoomLevel();
+      viewer.zoom(Math.max(0, current - 10));
+    });
+    
+    document.getElementById('btn-autorotate').addEventListener('click', function() {
+      if (autorotatePlugin) {
+        autorotatePlugin.toggle();
+        isAutorotating = !isAutorotating;
+        this.classList.toggle('active', isAutorotating);
+      }
+    });
+    
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case 'f': case 'F': viewer.toggleFullscreen(); break;
+        case '+': case '=': document.getElementById('btn-zoom-in').click(); break;
+        case '-': document.getElementById('btn-zoom-out').click(); break;
+        case 'r': case 'R': document.getElementById('btn-autorotate').click(); break;
+      }
+    });
+  </script>
+</body>
+</html>

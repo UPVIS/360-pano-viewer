@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "created": "2026-01-20T19:44:33.019Z",
+  "original": {
+    "width": 4096,
+    "height": 2048,
+    "format": "jpeg"
+  },
+  "tileSize": 512,
+  "format": "webp",
+  "preview": "preview.webp",
+  "levels": [
+    {
+      "level": 0,
+      "name": "low",
+      "width": 2048,
+      "height": 1024,
+      "cols": 4,
+      "rows": 2,
+      "tileSize": 512
+    },
+    {
+      "level": 1,
+      "name": "medium",
+      "width": 4096,
+      "height": 2048,
+      "cols": 8,
+      "rows": 4,
+      "tileSize": 512
+    },
+    {
+      "level": 2,
+      "name": "high",
+      "width": 4096,
+      "height": 2048,
+      "cols": 8,
+      "rows": 4,
+      "tileSize": 512
+    }
+  ]
+}
