@@ -1,0 +1,141 @@
+/* POI Marker Styles */
+.poi-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.poi-marker:hover {
+  transform: scale(1.1);
+}
+
+.poi-marker.editable {
+  cursor: grab;
+}
+
+.poi-marker.editable:active {
+  cursor: grabbing;
+}
+
+.poi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.poi-marker:hover .poi-icon {
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.5);
+}
+
+.poi-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.poi-icon-info {
+  background: rgba(59, 130, 246, 0.9);
+}
+
+.poi-icon-image {
+  background: rgba(168, 85, 247, 0.9);
+}
+
+.poi-icon-video {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.poi-icon-link {
+  background: rgba(34, 197, 94, 0.9);
+}
+
+.poi-label {
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Navigation Arrow Styles */
+.nav-arrow-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.nav-arrow-marker:hover {
+  transform: scale(1.1) translateY(-4px);
+}
+
+.nav-arrow-marker.editable {
+  cursor: grab;
+}
+
+.nav-arrow-marker.editable:active {
+  cursor: grabbing;
+}
+
+.floor-arrow {
+  width: 48px;
+  height: 40px;
+  color: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.nav-arrow-marker:hover .floor-arrow {
+  color: rgba(74, 222, 128, 1);
+  filter: drop-shadow(0 4px 8px rgba(74, 222, 128, 0.4));
+}
+
+.floor-arrow svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nav-label {
+  margin-top: 4px;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+}
+
+/* Pulse animation for editable markers */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+.poi-marker.editable .poi-icon,
+.nav-arrow-marker.editable .floor-arrow {
+  animation: pulse-ring 2s infinite;
+}

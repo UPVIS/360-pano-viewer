@@ -1,27 +1,112 @@
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Share2, Upload, Eye, Edit2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PanoViewer } from '@/components/viewer/PanoViewer'
-import { useState } from 'react'
+import { PanoViewer, type PanoViewerHandle } from '@/components/viewer/PanoViewer'
+import { EditorToolbar } from '@/components/editor/EditorToolbar'
+import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
+import { SceneStrip } from '@/components/editor/SceneStrip'
+import { PoiTooltip } from '@/components/viewer/PoiTooltip'
+import { useEditorStore } from '@/stores/editorStore'
+import { useProjectStore, type PointOfInterest } from '@/stores/projectStore'
+import { useEditorActions } from '@/hooks/useEditorActions'
+import type { PanoViewerCallbacks, Position3D, MarkerData } from '@/hooks/usePanoViewer'
+import { cn } from '@/lib/utils'
+
+// Demo project data
+const DEMO_PROJECT = {
+  id: 'demo',
+  name: 'Demo Projekt',
+  panoramas: [
+    {
+      id: 'scene-1',
+      name: 'Hauptansicht',
+      tilesPath: '/test-assets/tiles/sample/',
+      previewPath: '/test-assets/tiles/sample/preview.webp',
+      initialView: { yaw: 0, pitch: 0, fov: 75 },
+      pitchLimits: { min: -30, max: 30 },
+      pois: [],
+      navArrows: []
+    }
+  ]
+}
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'viewer' | 'editor'>('editor')
+  const viewerRef = useRef<PanoViewerHandle>(null)
 
-  const projectName = 'Demo Projekt'
+  // Stores
+  const { mode, setMode, placementMode, isDraggingMarker } = useEditorStore()
+  const { project, currentSceneId, setProject, setCurrentScene, getCurrentPanorama } = useProjectStore()
 
-  const viewerOptions = {
-    tilesPath: '/test-assets/tiles/sample/',
-    previewPath: '/test-assets/tiles/sample/preview.webp',
-    initialView: {
-      yaw: 0,
-      pitch: 0,
-      fov: 75
+  // Local state
+  const [activePoiTooltip, setActivePoiTooltip] = useState<PointOfInterest | null>(null)
+
+  // Initialize project on mount
+  useEffect(() => {
+    if (!project) {
+      setProject(DEMO_PROJECT)
+    }
+  }, [project, setProject])
+
+  // Editor actions with marker management
+  const editorActions = useEditorActions({
+    addMarker: viewerRef.current?.addMarker || (() => {}),
+    removeMarker: viewerRef.current?.removeMarker || (() => {}),
+    clearMarkers: viewerRef.current?.clearMarkers || (() => {})
+  })
+
+  // Viewer callbacks
+  const viewerCallbacks: PanoViewerCallbacks = useMemo(() => ({
+    onClick: (position: Position3D) => {
+      editorActions.handlePanoramaClick(position)
     },
-    autoRotate: false,
-    autoRotateSpeed: 0.5
-  }
+    onMarkerClick: (markerId: string, data: MarkerData) => {
+      if (mode === 'viewer' && data.type === 'poi') {
+        // Show POI tooltip in viewer mode
+        const pano = getCurrentPanorama()
+        const poi = pano?.pois.find(p => p.id === markerId)
+        if (poi) {
+          setActivePoiTooltip(poi)
+        }
+      } else {
+        editorActions.handleMarkerClick(markerId, data)
+      }
+    },
+    onReady: () => {
+      // Refresh markers when viewer is ready
+      setTimeout(() => editorActions.refreshMarkers(), 100)
+    }
+  }), [mode, editorActions, getCurrentPanorama])
+
+  // Get current panorama options
+  const currentPano = getCurrentPanorama()
+  const viewerOptions = useMemo(() => {
+    if (!currentPano) {
+      return {
+        tilesPath: '/test-assets/tiles/sample/',
+        previewPath: '/test-assets/tiles/sample/preview.webp',
+        initialView: { yaw: 0, pitch: 0, fov: 75 },
+        autoRotate: false,
+        autoRotateSpeed: 0.5
+      }
+    }
+    return {
+      tilesPath: currentPano.tilesPath,
+      previewPath: currentPano.previewPath,
+      initialView: currentPano.initialView,
+      autoRotate: mode === 'viewer',
+      autoRotateSpeed: 0.3
+    }
+  }, [currentPano, mode])
+
+  // Refresh markers when scene or mode changes
+  useEffect(() => {
+    if (viewerRef.current) {
+      editorActions.refreshMarkers()
+    }
+  }, [currentSceneId, mode])
 
   const handleShare = () => {
     console.log('Share clicked for project:', id)
@@ -33,10 +118,14 @@ export function EditorPage() {
     // TODO: Open upload dialog
   }
 
+  const handleSceneChange = (sceneId: string) => {
+    setCurrentScene(sceneId)
+  }
+
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
       {/* Editor Header */}
-      <div className="h-12 border-b border-border bg-card flex items-center justify-between px-4 shrink-0">
+      <div className="h-12 border-b border-border bg-card flex items-center justify-between px-4 shrink-0 z-50">
         {/* Left: Back + Project Name */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
@@ -44,7 +133,7 @@ export function EditorPage() {
           </Button>
           <input
             type="text"
-            defaultValue={projectName}
+            defaultValue={project?.name || 'Demo Projekt'}
             className="bg-transparent border-none text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring rounded px-2 py-1"
             onBlur={(e) => console.log('Rename to:', e.target.value)}
           />
@@ -85,47 +174,43 @@ export function EditorPage() {
         </div>
       </div>
 
-      {/* Main Content: Viewer */}
+      {/* Main Content */}
       <div className="flex-1 relative">
-        <PanoViewer options={viewerOptions} />
+        {/* Panorama Viewer */}
+        <PanoViewer 
+          ref={viewerRef}
+          options={viewerOptions}
+          callbacks={viewerCallbacks}
+        />
 
-        {/* Editor Mode Indicator */}
-        {mode === 'editor' && (
-          <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg bg-card/90 backdrop-blur-sm border border-border text-sm">
-            <span className="text-muted-foreground">Editor-Modus aktiv</span>
-            <span className="ml-2 text-xs text-muted-foreground">(Klicke um POIs zu platzieren)</span>
-          </div>
+        {/* Editor Toolbar */}
+        <EditorToolbar />
+
+        {/* Properties Panel */}
+        <PropertiesPanel />
+
+        {/* Scene Strip */}
+        <SceneStrip 
+          onUpload={handleUpload}
+          onSceneChange={handleSceneChange}
+        />
+
+        {/* POI Tooltip (Viewer Mode) */}
+        <PoiTooltip 
+          poi={activePoiTooltip}
+          onClose={() => setActivePoiTooltip(null)}
+        />
+
+        {/* Placement/Drag Cursor Indicator */}
+        {(placementMode || isDraggingMarker) && (
+          <div 
+            className={cn(
+              'fixed inset-0 pointer-events-none z-40',
+              'cursor-crosshair'
+            )}
+            style={{ cursor: 'crosshair' }}
+          />
         )}
-
-        {/* Scene Strip Placeholder */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3">
-            <div className="flex items-center gap-3 overflow-x-auto">
-              {/* Scene Thumbnails */}
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className={`shrink-0 w-24 h-16 rounded-md overflow-hidden border-2 cursor-pointer transition-colors ${
-                    i === 1 ? 'border-primary' : 'border-transparent hover:border-primary/50'
-                  }`}
-                >
-                  <img
-                    src="/test-assets/tiles/sample/preview.webp"
-                    alt={`Szene ${i}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ))}
-              {/* Add Scene Button */}
-              <button
-                onClick={handleUpload}
-                className="shrink-0 w-24 h-16 rounded-md border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Upload className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
