@@ -217,7 +217,7 @@
     const textureLoader = new THREE.TextureLoader();
     const texture = textureLoader.load(
       // WICHTIG: Ersetze mit deinem 4K Panorama-Pfad
-      '../../test-assets/sample-4k.jpg',
+      '/test-assets/sample-4k.jpg',
       () => {
         const loadTime = Math.round(performance.now() - startTime);
         document.getElementById('loadTime').textContent = loadTime + 'ms';

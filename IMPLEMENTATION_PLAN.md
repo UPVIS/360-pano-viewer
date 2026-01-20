@@ -368,24 +368,60 @@ Datei: `docs/ENGINE_COMPARISON.md`
 
 ## PHASE 2: MVP Core Viewer
 
-**Ziel:** Performanter Single-Panorama Viewer
+**Ziel:** Performanter Single-Panorama Viewer mit vollständigen Controls
+**Entscheidung:** Photo Sphere Viewer als Engine
 
-### Tasks
-- [ ] React-Wrapper für PSV erstellen
-- [ ] Responsive Container (Mobile-first)
-- [ ] Touch-Gesten optimieren
-- [ ] Loading States (Blur-up Placeholder)
-- [ ] Initial View Direction Setting
-- [ ] Pitch-Limits (Achsen-Lock)
-- [ ] Auto-Rotate (ein/aus, Speed)
-- [ ] FOV-Limits
-- [ ] Keyboard: Pfeiltasten für Panorama-Wechsel
-- [ ] ESC zum Schließen von Modals
-- [ ] ARIA-Labels für Accessibility
+### Strategie
+1. Prototyp erweitern (kein React-Setup in Phase 2)
+2. Fokus auf Viewer-Funktionalität
+3. Tile-Streaming am Ende von Phase 2
+
+### 2.1 Viewer-Container & Responsive
+- [ ] Fullscreen-Container (100vh, 100vw)
+- [ ] Mobile-first CSS
+- [ ] Touch-optimierte Interaktion
+- [ ] Orientierungswechsel (Portrait/Landscape)
+
+### 2.2 Loading-System (Blur-up)
+- [ ] Low-res Preview-Bild generieren (256px)
+- [ ] Blur-up Effekt beim Laden
+- [ ] Smooth Transition zu High-res
+- [ ] Loading-Spinner als Fallback
+
+### 2.3 Panorama-Einstellungen
+- [ ] Initial View Direction (yaw, pitch, fov)
+- [ ] Pitch-Limits konfigurierbar pro Panorama
+- [ ] Default Pitch-Limits: -30° bis +30°
+- [ ] FOV-Limits (min: 30°, max: 120°)
+- [ ] Auto-Rotate (ein/aus, Speed einstellbar)
+
+### 2.4 UI-Controls (Vollständig)
+- [ ] Fullscreen-Button
+- [ ] Zoom +/- Buttons
+- [ ] Autorotate Toggle
+- [ ] Kompass-Anzeige (zeigt Blickrichtung)
+- [ ] Szenen-Liste (Thumbnails der Panoramen)
+- [ ] Share-Button (Link kopieren)
+- [ ] Settings-Button (öffnet Einstellungs-Panel)
+- [ ] Mobile: Touch-freundliche Button-Größen
+
+### 2.5 Keyboard & Accessibility
+- [ ] Pfeiltasten für Navigation
+- [ ] ESC zum Schließen von Overlays
+- [ ] ARIA-Labels für Screen Reader
+- [ ] Fokus-Management
+
+### 2.6 Tile-Streaming (Ende Phase 2)
+- [ ] Sharp-Script: 4K → Multi-Resolution Tiles
+- [ ] Tile-Levels: 256px, 512px, 1024px
+- [ ] PSV Multiresolution-Adapter
 - [ ] Lazy Loading der Tiles
 - [ ] Viewport-basiertes Streaming
-- [ ] Memory Management
+
+### 2.7 Performance
+- [ ] Memory Management (alte Tiles entladen)
 - [ ] Lighthouse Mobile Score > 90
+- [ ] FPS-Monitoring einbauen
 
 **Deliverable:** Performanter Viewer, alle Basis-Controls
 

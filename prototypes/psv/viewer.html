@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>360° Panorama Viewer</title>
+  
+  <!-- Photo Sphere Viewer CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.min.css">
+  
+  <style>
+    :root {
+      --accent-color: #4ade80;
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text-primary: #ffffff;
+      --text-secondary: #888888;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --glass-bg: rgba(0, 0, 0, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --control-size: 44px;
+      --control-size-mobile: 48px;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      touch-action: none;
+    }
+    
+    /* ==========================================
+       VIEWER CONTAINER
+    ========================================== */
+    #viewer-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+    }
+    
+    #viewer {
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* ==========================================
+       LOADING OVERLAY (Blur-up)
+    ========================================== */
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s ease-out;
+    }
+    
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #loading-preview {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: blur(20px);
+      transform: scale(1.1);
+      opacity: 0.5;
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      z-index: 1;
+    }
+    
+    .loading-text {
+      margin-top: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      z-index: 1;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* ==========================================
+       CONTROLS CONTAINER
+    ========================================== */
+    .controls-container {
+      position: absolute;
+      z-index: 50;
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    /* Top-right controls */
+    .controls-top-right {
+      top: 1rem;
+      right: 1rem;
+    }
+    
+    /* Bottom-center controls */
+    .controls-bottom {
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    /* Bottom-left controls */
+    .controls-bottom-left {
+      bottom: 1rem;
+      left: 1rem;
+    }
+    
+    /* ==========================================
+       CONTROL BUTTONS
+    ========================================== */
+    .control-btn {
+      width: var(--control-size);
+      height: var(--control-size);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .control-btn.active {
+      background: var(--accent-color);
+      color: #000;
+      border-color: var(--accent-color);
+    }
+    
+    .control-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      .control-btn {
+        width: var(--control-size-mobile);
+        height: var(--control-size-mobile);
+      }
+      
+      .controls-top-right {
+        top: 0.75rem;
+        right: 0.75rem;
+      }
+      
+      .controls-bottom {
+        bottom: 0.75rem;
+      }
+      
+      .controls-bottom-left {
+        bottom: 0.75rem;
+        left: 0.75rem;
+      }
+    }
+    
+    /* ==========================================
+       COMPASS
+    ========================================== */
+    .compass {
+      width: 60px;
+      height: 60px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      position: relative;
+    }
+    
+    .compass-needle {
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(to bottom, #ef4444 50%, #fff 50%);
+      border-radius: 2px;
+      transition: transform 0.1s ease-out;
+    }
+    
+    .compass-n {
+      position: absolute;
+      top: 4px;
+      font-size: 0.625rem;
+      font-weight: bold;
+      color: #ef4444;
+    }
+    
+    /* ==========================================
+       SCENES PANEL
+    ========================================== */
+    .scenes-panel {
+      position: absolute;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 50;
+      max-width: calc(100vw - 2rem);
+      overflow-x: auto;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    
+    .scenes-panel.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .scene-thumb {
+      width: 80px;
+      height: 45px;
+      border-radius: 0.375rem;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .scene-thumb:hover {
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .scene-thumb.active {
+      border-color: var(--accent-color);
+    }
+    
+    .scene-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .scene-thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.625rem;
+      color: var(--text-secondary);
+    }
+    
+    /* ==========================================
+       SETTINGS PANEL
+    ========================================== */
+    .settings-panel {
+      position: absolute;
+      top: 4rem;
+      right: 1rem;
+      width: 280px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 60;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-10px);
+      transition: all 0.2s;
+    }
+    
+    .settings-panel.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    
+    .settings-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .setting-row:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+    
+    .setting-value {
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+    }
+    
+    /* Toggle Switch */
+    .toggle {
+      width: 44px;
+      height: 24px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .toggle.active {
+      background: var(--accent-color);
+    }
+    
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    
+    .toggle.active::after {
+      transform: translateX(20px);
+    }
+    
+    /* Range Slider */
+    .range-slider {
+      width: 100px;
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    .range-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--accent-color);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    /* ==========================================
+       SHARE TOAST
+    ========================================== */
+    .toast {
+      position: fixed;
+      bottom: 6rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s;
+    }
+    
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    
+    /* ==========================================
+       MARKER STYLES
+    ========================================== */
+    .marker-poi {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-color);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #000;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      transition: transform 0.2s;
+    }
+    
+    .marker-poi:hover {
+      transform: scale(1.15);
+    }
+    
+    .marker-nav {
+      width: 48px;
+      height: 48px;
+      background: rgba(59, 130, 246, 0.9);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 24px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.2s;
+      animation: pulse 2s infinite;
+    }
+    
+    .marker-nav:hover {
+      transform: scale(1.15);
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+      50% { box-shadow: 0 4px 25px rgba(59, 130, 246, 0.7); }
+    }
+    
+    /* Tooltip Override */
+    .psv-tooltip {
+      background: var(--glass-bg) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: 0.5rem !important;
+      backdrop-filter: blur(10px) !important;
+      max-width: 300px !important;
+    }
+    
+    .tooltip-content {
+      padding: 0.25rem;
+    }
+    
+    .tooltip-content h4 {
+      margin: 0 0 0.25rem 0;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+    }
+    
+    .tooltip-content p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    
+    /* ==========================================
+       FULLSCREEN ADJUSTMENTS
+    ========================================== */
+    :fullscreen #viewer-container,
+    :-webkit-full-screen #viewer-container {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewer-container">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+      <img id="loading-preview" src="" alt="" style="display: none;">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Panorama wird geladen...</div>
+    </div>
+    
+    <!-- Viewer -->
+    <div id="viewer"></div>
+    
+    <!-- Top Right Controls -->
+    <div class="controls-container controls-top-right">
+      <button class="control-btn" id="btn-settings" title="Einstellungen">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-share" title="Link teilen">
+        <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-fullscreen" title="Vollbild">
+        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+    
+    <!-- Bottom Center Controls -->
+    <div class="controls-container controls-bottom">
+      <button class="control-btn" id="btn-zoom-out" title="Herauszoomen">
+        <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-autorotate" title="Auto-Rotation">
+        <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-scenes" title="Szenen">
+        <svg viewBox="0 0 24 24"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+      </button>
+      <button class="control-btn" id="btn-zoom-in" title="Hineinzoomen">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
+    </div>
+    
+    <!-- Bottom Left: Compass -->
+    <div class="controls-container controls-bottom-left">
+      <div class="compass" id="compass">
+        <span class="compass-n">N</span>
+        <div class="compass-needle" id="compass-needle"></div>
+      </div>
+    </div>
+    
+    <!-- Scenes Panel -->
+    <div class="scenes-panel" id="scenes-panel">
+      <div class="scene-thumb active">
+        <div class="scene-thumb-placeholder">Szene 1</div>
+      </div>
+      <div class="scene-thumb">
+        <div class="scene-thumb-placeholder">Szene 2</div>
+      </div>
+      <div class="scene-thumb">
+        <div class="scene-thumb-placeholder">Szene 3</div>
+      </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settings-panel">
+      <div class="settings-title">Einstellungen</div>
+      <div class="setting-row">
+        <span class="setting-label">Auto-Rotation</span>
+        <div class="toggle" id="toggle-autorotate"></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Rotations-Geschwindigkeit</span>
+        <input type="range" class="range-slider" id="slider-speed" min="1" max="10" value="5">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Aktuelle Blickrichtung</span>
+        <span class="setting-value" id="current-view">0°</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Zoom-Level</span>
+        <span class="setting-value" id="current-zoom">50%</span>
+      </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">Link in Zwischenablage kopiert!</div>
+  </div>
+
+  <!-- Photo Sphere Viewer JS -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170/build/three.module.min.js",
+        "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.min.js",
+        "@photo-sphere-viewer/markers-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.module.min.js",
+        "@photo-sphere-viewer/autorotate-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/autorotate-plugin@5/index.module.min.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import { Viewer } from '@photo-sphere-viewer/core';
+    import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+    import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
+    
+    // ==========================================
+    // CONFIGURATION
+    // ==========================================
+    const CONFIG = {
+      panorama: '/test-assets/sample-4k.jpg',
+      initialView: { yaw: 0, pitch: 0, fov: 70 },
+      pitchLimits: { min: -30, max: 30 },  // Degrees
+      fovLimits: { min: 30, max: 120 },
+      autorotate: {
+        enabled: false,
+        speed: '0.5rpm'
+      }
+    };
+    
+    // ==========================================
+    // STATE
+    // ==========================================
+    let viewer = null;
+    let markersPlugin = null;
+    let autorotatePlugin = null;
+    let isAutorotating = false;
+    let scenesVisible = false;
+    let settingsVisible = false;
+    
+    // ==========================================
+    // DOM ELEMENTS
+    // ==========================================
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingPreview = document.getElementById('loading-preview');
+    const compassNeedle = document.getElementById('compass-needle');
+    const scenesPanel = document.getElementById('scenes-panel');
+    const settingsPanel = document.getElementById('settings-panel');
+    const toast = document.getElementById('toast');
+    
+    // Buttons
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const btnSettings = document.getElementById('btn-settings');
+    const btnShare = document.getElementById('btn-share');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    const btnAutorotate = document.getElementById('btn-autorotate');
+    const btnScenes = document.getElementById('btn-scenes');
+    
+    // Settings
+    const toggleAutorotate = document.getElementById('toggle-autorotate');
+    const sliderSpeed = document.getElementById('slider-speed');
+    const currentView = document.getElementById('current-view');
+    const currentZoom = document.getElementById('current-zoom');
+    
+    // ==========================================
+    // INIT VIEWER
+    // ==========================================
+    function initViewer() {
+      viewer = new Viewer({
+        container: document.getElementById('viewer'),
+        panorama: CONFIG.panorama,
+        defaultYaw: CONFIG.initialView.yaw,
+        defaultPitch: CONFIG.initialView.pitch,
+        defaultZoomLvl: 50,
+        minFov: CONFIG.fovLimits.min,
+        maxFov: CONFIG.fovLimits.max,
+        navbar: false,
+        loadingTxt: '',
+        plugins: [
+          [MarkersPlugin, { markers: [] }],
+          [AutorotatePlugin, {
+            autorotateSpeed: CONFIG.autorotate.speed,
+            autostartDelay: null,
+            autostartOnIdle: false
+          }]
+        ]
+      });
+      
+      // Get plugins
+      viewer.addEventListener('ready', onViewerReady);
+      viewer.addEventListener('position-updated', onPositionUpdate);
+      viewer.addEventListener('zoom-updated', onZoomUpdate);
+    }
+    
+    // ==========================================
+    // EVENT HANDLERS
+    // ==========================================
+    function onViewerReady() {
+      console.log('Viewer ready');
+      
+      // Get plugins
+      markersPlugin = viewer.getPlugin(MarkersPlugin);
+      autorotatePlugin = viewer.getPlugin(AutorotatePlugin);
+      
+      // Add demo markers
+      addDemoMarkers();
+      
+      // Apply pitch limits
+      // Note: PSV doesn't have built-in pitch limits, we handle this via position-updated
+      
+      // Hide loading overlay
+      loadingOverlay.classList.add('hidden');
+      
+      // Initial UI update
+      updateCompass();
+      updateSettingsDisplay();
+    }
+    
+    function onPositionUpdate({ position }) {
+      // Enforce pitch limits
+      const pitch = position.pitch;
+      const minPitch = (CONFIG.pitchLimits.min * Math.PI) / 180;
+      const maxPitch = (CONFIG.pitchLimits.max * Math.PI) / 180;
+      
+      if (pitch < minPitch || pitch > maxPitch) {
+        const clampedPitch = Math.max(minPitch, Math.min(maxPitch, pitch));
+        viewer.rotate({ yaw: position.yaw, pitch: clampedPitch });
+      }
+      
+      // Update compass
+      updateCompass();
+      updateSettingsDisplay();
+    }
+    
+    function onZoomUpdate({ zoomLevel }) {
+      updateSettingsDisplay();
+    }
+    
+    // ==========================================
+    // UI UPDATES
+    // ==========================================
+    function updateCompass() {
+      if (!viewer) return;
+      const position = viewer.getPosition();
+      const yawDeg = (position.yaw * 180) / Math.PI;
+      compassNeedle.style.transform = `rotate(${-yawDeg}deg)`;
+    }
+    
+    function updateSettingsDisplay() {
+      if (!viewer) return;
+      const position = viewer.getPosition();
+      const yawDeg = Math.round((position.yaw * 180) / Math.PI);
+      const zoomLevel = Math.round(viewer.getZoomLevel());
+      
+      currentView.textContent = `${yawDeg}°`;
+      currentZoom.textContent = `${zoomLevel}%`;
+    }
+    
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 2000);
+    }
+    
+    // ==========================================
+    // MARKERS
+    // ==========================================
+    function addDemoMarkers() {
+      if (!markersPlugin) return;
+      
+      // Info POI
+      markersPlugin.addMarker({
+        id: 'poi-1',
+        position: { yaw: 0.8, pitch: 0 },
+        html: '<div class="marker-poi">i</div>',
+        anchor: 'center center',
+        tooltip: {
+          content: `
+            <div class="tooltip-content">
+              <h4>Willkommen</h4>
+              <p>Dies ist ein Beispiel für einen Point of Interest.</p>
+            </div>
+          `,
+          position: 'top center',
+          trigger: 'hover'
+        },
+        data: { type: 'info' }
+      });
+      
+      // Navigation Arrow
+      markersPlugin.addMarker({
+        id: 'nav-1',
+        position: { yaw: -1.5, pitch: -0.1 },
+        html: '<div class="marker-nav">→</div>',
+        anchor: 'center center',
+        tooltip: {
+          content: 'Nächster Raum',
+          position: 'top center',
+          trigger: 'hover'
+        },
+        data: { type: 'nav', target: 'scene-2' }
+      });
+      
+      // Marker click handler
+      markersPlugin.addEventListener('select-marker', ({ marker }) => {
+        if (marker.config.data?.type === 'nav') {
+          showToast(`Navigation zu: ${marker.config.data.target}`);
+        }
+      });
+    }
+    
+    // ==========================================
+    // CONTROL HANDLERS
+    // ==========================================
+    btnFullscreen.addEventListener('click', () => {
+      viewer.toggleFullscreen();
+    });
+    
+    btnSettings.addEventListener('click', () => {
+      settingsVisible = !settingsVisible;
+      settingsPanel.classList.toggle('visible', settingsVisible);
+      btnSettings.classList.toggle('active', settingsVisible);
+      
+      // Close scenes panel
+      if (settingsVisible && scenesVisible) {
+        scenesVisible = false;
+        scenesPanel.classList.remove('visible');
+        btnScenes.classList.remove('active');
+      }
+    });
+    
+    btnShare.addEventListener('click', () => {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Link in Zwischenablage kopiert!');
+      });
+    });
+    
+    btnZoomIn.addEventListener('click', () => {
+      const current = viewer.getZoomLevel();
+      viewer.zoom(Math.min(100, current + 10));
+    });
+    
+    btnZoomOut.addEventListener('click', () => {
+      const current = viewer.getZoomLevel();
+      viewer.zoom(Math.max(0, current - 10));
+    });
+    
+    btnAutorotate.addEventListener('click', () => {
+      if (autorotatePlugin) {
+        autorotatePlugin.toggle();
+        isAutorotating = !isAutorotating;
+        btnAutorotate.classList.toggle('active', isAutorotating);
+        toggleAutorotate.classList.toggle('active', isAutorotating);
+      }
+    });
+    
+    btnScenes.addEventListener('click', () => {
+      scenesVisible = !scenesVisible;
+      scenesPanel.classList.toggle('visible', scenesVisible);
+      btnScenes.classList.toggle('active', scenesVisible);
+      
+      // Close settings panel
+      if (scenesVisible && settingsVisible) {
+        settingsVisible = false;
+        settingsPanel.classList.remove('visible');
+        btnSettings.classList.remove('active');
+      }
+    });
+    
+    // Settings toggles
+    toggleAutorotate.addEventListener('click', () => {
+      btnAutorotate.click();
+    });
+    
+    sliderSpeed.addEventListener('input', (e) => {
+      const speed = e.target.value / 10;
+      if (autorotatePlugin) {
+        autorotatePlugin.setOptions({ autorotateSpeed: `${speed}rpm` });
+      }
+    });
+    
+    // ==========================================
+    // KEYBOARD SHORTCUTS
+    // ==========================================
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case 'Escape':
+          if (settingsVisible) {
+            settingsVisible = false;
+            settingsPanel.classList.remove('visible');
+            btnSettings.classList.remove('active');
+          }
+          if (scenesVisible) {
+            scenesVisible = false;
+            scenesPanel.classList.remove('visible');
+            btnScenes.classList.remove('active');
+          }
+          break;
+        case 'f':
+        case 'F':
+          viewer.toggleFullscreen();
+          break;
+        case 'ArrowLeft':
+          // Previous scene (placeholder)
+          showToast('Vorherige Szene');
+          break;
+        case 'ArrowRight':
+          // Next scene (placeholder)
+          showToast('Nächste Szene');
+          break;
+        case '+':
+        case '=':
+          btnZoomIn.click();
+          break;
+        case '-':
+          btnZoomOut.click();
+          break;
+        case 'r':
+        case 'R':
+          btnAutorotate.click();
+          break;
+      }
+    });
+    
+    // ==========================================
+    // CLOSE PANELS ON OUTSIDE CLICK
+    // ==========================================
+    document.addEventListener('click', (e) => {
+      // Close settings panel
+      if (settingsVisible && 
+          !settingsPanel.contains(e.target) && 
+          !btnSettings.contains(e.target)) {
+        settingsVisible = false;
+        settingsPanel.classList.remove('visible');
+        btnSettings.classList.remove('active');
+      }
+      
+      // Close scenes panel
+      if (scenesVisible && 
+          !scenesPanel.contains(e.target) && 
+          !btnScenes.contains(e.target)) {
+        scenesVisible = false;
+        scenesPanel.classList.remove('visible');
+        btnScenes.classList.remove('active');
+      }
+    });
+    
+    // ==========================================
+    // INIT
+    // ==========================================
+    initViewer();
+  </script>
+</body>
+</html>
