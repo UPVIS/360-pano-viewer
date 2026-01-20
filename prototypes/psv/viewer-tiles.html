@@ -11,6 +11,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5/index.min.css">
   
+  <!-- Quill Rich Text Editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  
   <style>
     /* ==========================================
        CSS VARIABLES & THEME
@@ -153,10 +156,10 @@
     ========================================== */
     #properties-panel {
       position: fixed;
-      bottom: 100px;
+      top: 50%;
       right: 16px;
       width: 320px;
-      max-height: calc(100vh - 200px);
+      max-height: 80vh;
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
@@ -167,14 +170,14 @@
       display: flex;
       flex-direction: column;
       opacity: 0;
-      transform: translateX(20px);
+      transform: translateY(-50%) translateX(20px);
       pointer-events: none;
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
     
     #properties-panel.visible {
       opacity: 1;
-      transform: translateX(0);
+      transform: translateY(-50%) translateX(0);
       pointer-events: auto;
     }
     
@@ -325,6 +328,8 @@
     
     .props-actions .props-btn {
       flex: 1;
+      padding: 8px 12px;
+      font-size: 13px;
     }
     
     .props-editor {
@@ -354,6 +359,63 @@
     
     .poi-content-editor.hidden {
       display: none;
+    }
+    
+    /* Quill Editor Dark Mode Styles */
+    #poi-quill-editor {
+      background: var(--bg-tertiary);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+    
+    .ql-toolbar.ql-snow {
+      border: 1px solid var(--border-color) !important;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      background: var(--bg-secondary);
+    }
+    
+    .ql-container.ql-snow {
+      border: 1px solid var(--border-color) !important;
+      border-top: none !important;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+    
+    .ql-editor {
+      color: var(--text-primary);
+      min-height: 120px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .ql-editor.ql-blank::before {
+      color: var(--text-muted);
+      font-style: normal;
+    }
+    
+    .ql-snow .ql-stroke {
+      stroke: var(--text-secondary) !important;
+    }
+    
+    .ql-snow .ql-fill {
+      fill: var(--text-secondary) !important;
+    }
+    
+    .ql-snow .ql-picker {
+      color: var(--text-secondary) !important;
+    }
+    
+    .ql-snow .ql-picker-options {
+      background: var(--bg-secondary) !important;
+      border-color: var(--border-color) !important;
+    }
+    
+    .ql-toolbar.ql-snow .ql-formats button:hover,
+    .ql-toolbar.ql-snow .ql-formats button.ql-active {
+      color: var(--accent-color) !important;
+    }
+    
+    .ql-toolbar.ql-snow .ql-formats button:hover .ql-stroke,
+    .ql-toolbar.ql-snow .ql-formats button.ql-active .ql-stroke {
+      stroke: var(--accent-color) !important;
     }
     
     .image-upload-area {
@@ -1749,9 +1811,9 @@
           
           <label class="props-label">Inhalt</label>
           
-          <!-- Info: Rich Text Editor -->
+          <!-- Info: Quill Rich Text Editor -->
           <div id="poi-content-info" class="poi-content-editor">
-            <div id="poi-editor" class="props-editor" contenteditable="true"></div>
+            <div id="poi-quill-editor"></div>
           </div>
           
           <!-- Image: Upload + Preview -->
@@ -1783,7 +1845,6 @@
           </div>
           
           <div class="props-actions">
-            <button id="poi-move" class="props-btn">Verschieben</button>
             <button id="poi-save" class="props-btn primary">Speichern</button>
             <button id="poi-delete" class="props-btn danger">Löschen</button>
           </div>
@@ -1797,7 +1858,6 @@
           <input type="text" id="nav-label" class="props-input" placeholder="z.B. 'Zum Wohnzimmer'">
           
           <div class="props-actions">
-            <button id="nav-move" class="props-btn">Verschieben</button>
             <button id="nav-save" class="props-btn primary">Speichern</button>
             <button id="nav-delete" class="props-btn danger">Löschen</button>
           </div>
@@ -2058,6 +2118,9 @@
       </button>
     </div>
   </div>
+
+  <!-- Quill Rich Text Editor JS -->
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
   <!-- Photo Sphere Viewer JS -->
   <script type="importmap">
@@ -2455,8 +2518,7 @@
       propsPitchMaxVal: $('#props-pitch-max-val'),
       poiTitle: $('#poi-title'),
       poiIcon: $('#poi-icon'),
-      poiEditor: $('#poi-editor'),
-      poiMove: $('#poi-move'),
+      poiQuillEditor: $('#poi-quill-editor'),
       poiSave: $('#poi-save'),
       poiDelete: $('#poi-delete'),
       // POI Content Editors
@@ -2473,7 +2535,6 @@
       // Nav
       navTarget: $('#nav-target'),
       navLabel: $('#nav-label'),
-      navMove: $('#nav-move'),
       navSave: $('#nav-save'),
       navDelete: $('#nav-delete')
     };
@@ -2783,11 +2844,16 @@
       // Show correct content editor
       showPoiContentEditor(poi.icon || 'info');
       
+      // Initialize Quill if needed
+      initQuillEditor();
+      
       // Load content based on type
       const content = poi.content || {};
       switch (poi.icon) {
         case 'info':
-          elements.poiEditor.innerHTML = content.html || poi.description || '<p>Inhalt eingeben...</p>';
+          if (quillEditor) {
+            quillEditor.root.innerHTML = content.html || poi.description || '';
+          }
           break;
         case 'image':
           if (content.src) {
@@ -2833,13 +2899,6 @@
     function selectElement(type, id) {
       state.selectedElement = { type, id };
       showPropertiesPanel(type);
-    }
-    
-    function startMarkerDrag() {
-      if (!state.selectedElement) return;
-      state.isDraggingMarker = true;
-      document.body.classList.add('placement-active');
-      showToast('Klicke auf die neue Position');
     }
     
     function updateMarkerPosition(yaw, pitch) {
@@ -3065,7 +3124,7 @@
       // Save content based on type
       switch (poi.icon) {
         case 'info':
-          poi.content = { type: 'info', html: elements.poiEditor.innerHTML };
+          poi.content = { type: 'info', html: quillEditor ? quillEditor.root.innerHTML : '' };
           break;
         case 'image':
           poi.content = { type: 'image', src: elements.poiImagePreview.src };
@@ -3637,8 +3696,7 @@
       elements.toolView.click();
     });
     
-    // POI move/save/delete
-    elements.poiMove.addEventListener('click', startMarkerDrag);
+    // POI save/delete
     elements.poiSave.addEventListener('click', updatePoiFromPanel);
     elements.poiDelete.addEventListener('click', () => {
       if (state.selectedElement?.type === 'poi') {
@@ -3669,8 +3727,7 @@
       updateVideoPreview(e.target.value);
     });
     
-    // Nav move/save/delete
-    elements.navMove.addEventListener('click', startMarkerDrag);
+    // Nav save/delete
     elements.navSave.addEventListener('click', updateNavFromPanel);
     elements.navDelete.addEventListener('click', () => {
       if (state.selectedElement?.type === 'nav') {
@@ -3724,12 +3781,29 @@
     // KEYBOARD SHORTCUTS
     // ==========================================
     document.addEventListener('keydown', (e) => {
-      // Don't trigger if typing in input
-      if (e.target.tagName === 'INPUT') return;
+      // Don't trigger if typing in input or contenteditable
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+      
+      // Disable most hotkeys in editor mode (except Escape)
+      if (state.mode === 'editor' && e.key !== 'Escape') return;
       
       switch (e.key) {
         case 'Escape':
-          closeAllPanels();
+          if (state.mode === 'editor') {
+            // In editor: cancel placement or close panel
+            if (state.isDraggingMarker) {
+              state.isDraggingMarker = false;
+              document.body.classList.remove('placement-active');
+            } else if (state.propsVisible) {
+              hidePropertiesPanel();
+            } else if (state.placementMode) {
+              cancelPlacementMode();
+              elements.toolPoi.classList.remove('active');
+              elements.toolNav.classList.remove('active');
+            }
+          } else {
+            closeAllPanels();
+          }
           break;
         case 'f':
         case 'F':
@@ -3781,6 +3855,24 @@
     // PROJECT DATA
     // ==========================================
     let project = null;
+    let quillEditor = null;
+    
+    function initQuillEditor() {
+      if (quillEditor) return; // Already initialized
+      
+      quillEditor = new Quill('#poi-quill-editor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['link'],
+            ['clean']
+          ]
+        },
+        placeholder: 'Inhalt eingeben...'
+      });
+    }
     
     async function loadProject(url) {
       try {
@@ -4298,13 +4390,16 @@
         const data = marker.config.data;
         if (!data) return;
         
-        // In editor mode, select element for editing
+        // In editor mode, select element for editing AND enable move mode
         if (state.mode === 'editor') {
           if (data.type === 'poi') {
             selectElement('poi', marker.id);
           } else if (data.type === 'nav') {
             selectElement('nav', marker.id);
           }
+          // Enable drag mode - next panorama click sets new position
+          state.isDraggingMarker = true;
+          document.body.classList.add('placement-active');
           return;
         }
         
