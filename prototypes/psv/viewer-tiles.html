@@ -1180,8 +1180,8 @@
       <div class="stat-section">
         <div class="stat-section-title">CACHE</div>
         <div class="stat-row">
-          <span class="stat-label">Level</span>
-          <span class="stat-value" id="current-level">0</span>
+          <span class="stat-label">Zoom</span>
+          <span class="stat-value" id="current-level">0%</span>
         </div>
         <div class="stat-row">
           <span class="stat-label">Cached</span>
@@ -1386,13 +1386,56 @@
     // LOADING CONFIGURATION
     // ==========================================
     const LOADING_CONFIG = {
-      initialLevel: 0,           // Start mit low-res (8 Tiles statt 128)
-      upgradeDelay: 300,         // ms nach Transition bevor Upgrade
       preloadOnHover: true,      // Preload bei Hover auf Thumbnails
       preloadAdjacentCount: 2,   // Anzahl preloaded Szenen
-      cacheMaxTiles: 150,        // Max cached Tiles
-      transitionHideOn: 'preview' // 'preview' | 'lowres' | 'tiles'
+      cacheMaxTiles: 150         // Max cached Tiles
     };
+    
+    // ==========================================
+    // MULTI-LEVEL TILE HELPERS
+    // ==========================================
+    
+    /**
+     * Calculate zoom range for a given level index
+     * Distributes zoom range evenly across all levels
+     */
+    function getZoomRangeForLevel(levelIndex, totalLevels) {
+      // For 3 levels: [0,35], [35,65], [65,100]
+      // Low zoom = low res, High zoom = high res
+      const step = 100 / totalLevels;
+      const min = Math.round(levelIndex * step);
+      const max = levelIndex === totalLevels - 1 ? 100 : Math.round((levelIndex + 1) * step);
+      return [min, max];
+    }
+    
+    /**
+     * Build PSV-compatible levels config from manifest
+     */
+    function buildLevelsConfig(manifest, tilesPath) {
+      return manifest.levels.map((lvl, idx) => ({
+        id: `level-${idx}`,
+        width: lvl.width,
+        cols: lvl.cols,
+        rows: lvl.rows,
+        zoomRange: getZoomRangeForLevel(idx, manifest.levels.length)
+      }));
+    }
+    
+    /**
+     * Build complete panorama config for PSV with multi-level support
+     */
+    function buildPanoramaConfig(pano, manifest) {
+      const levels = buildLevelsConfig(manifest, pano.tilesPath);
+      
+      return {
+        baseUrl: pano.previewPath,
+        tileUrl: (col, row, level) => {
+          // level contains the id we set (e.g., "level-0", "level-1", etc.)
+          return `${pano.tilesPath}${level.id}/row-${row}/tile-${col}.webp`;
+        },
+        levels: levels
+      };
+    }
     
     // ==========================================
     // TILE CACHE SYSTEM
@@ -1512,7 +1555,6 @@
       scenesVisible: false,
       settingsVisible: false,
       currentScene: 'scene-1',
-      currentLevel: 0,           // Current resolution level
       tilesLoaded: 0,
       activeRequests: 0,
       fps: 0,
@@ -1521,8 +1563,7 @@
       frameCount: 0,
       showStats: CONFIG.showStats,
       gpuInfo: null,
-      preloadedScenes: new Set(), // Scenes that have been preloaded
-      isUpgrading: false          // Currently upgrading resolution
+      preloadedScenes: new Set() // Scenes that have been preloaded
     };
     
     // ==========================================
@@ -1723,7 +1764,9 @@
     function updateCacheStats() {
       const cacheStats = tileCache.getStats();
       
-      elements.currentLevel.textContent = `L${state.currentLevel}`;
+      // Get current zoom to show which level is active
+      const zoom = state.viewer ? Math.round(state.viewer.getZoomLevel()) : 0;
+      elements.currentLevel.textContent = `Z${zoom}%`;
       elements.cacheSize.textContent = `${cacheStats.tiles}/${LOADING_CONFIG.cacheMaxTiles}`;
       elements.cacheHitRate.textContent = `${cacheStats.hitRate}%`;
       elements.preloadedScenes.textContent = `${state.preloadedScenes.size}`;
@@ -2368,7 +2411,6 @@
       // Update state
       state.currentScene = targetSceneId;
       state.tilesLoaded = 0;
-      state.currentLevel = LOADING_CONFIG.initialLevel;
       elements.tilesLoaded.textContent = '0';
       
       // Update pitch limits from panorama
@@ -2386,16 +2428,10 @@
         tileCache.manifests.set(targetSceneId, manifest);
       }
       
-      // OPTIMIZATION: Start with LOW-RES level (8 tiles instead of 128!)
-      const lowLevel = manifest.levels[LOADING_CONFIG.initialLevel];
+      // Use native PSV multi-level config (automatic zoom-based resolution)
+      const panoConfig = buildPanoramaConfig(targetPano, manifest);
       
-      await state.viewer.setPanorama({
-        width: lowLevel.width,
-        cols: lowLevel.cols,
-        rows: lowLevel.rows,
-        baseUrl: targetPano.previewPath,
-        tileUrl: (col, row) => `${targetPano.tilesPath}level-${LOADING_CONFIG.initialLevel}/row-${row}/tile-${col}.webp`
-      });
+      await state.viewer.setPanorama(panoConfig);
       
       // Rotate to initial view
       state.viewer.rotate({
@@ -2410,75 +2446,15 @@
       // Update scenes panel
       updateScenesPanel();
       
-      // Hide transition IMMEDIATELY after low-res is ready
+      // Hide transition
       transitionOverlay.classList.remove('active');
       
       const switchTime = Math.round(performance.now() - switchStart);
-      console.log(`[Switch] ${targetPano.name} loaded in ${switchTime}ms (level-${LOADING_CONFIG.initialLevel})`);
+      console.log(`[Switch] ${targetPano.name} loaded in ${switchTime}ms (multi-level: ${manifest.levels.length} levels)`);
       showToast(`${targetPano.name}`);
-      
-      // BACKGROUND: Upgrade to high-res after delay
-      setTimeout(() => {
-        upgradeToHighRes(targetSceneId);
-      }, LOADING_CONFIG.upgradeDelay);
       
       // Preload adjacent scenes
       preloadAdjacentScenes(targetSceneId);
-    }
-    
-    /**
-     * Upgrade current scene to higher resolution based on zoom level
-     */
-    async function upgradeToHighRes(sceneId) {
-      // Don't upgrade if we switched to a different scene
-      if (sceneId !== state.currentScene) return;
-      if (state.isUpgrading) return;
-      
-      const pano = getPanoramaById(sceneId);
-      if (!pano) return;
-      
-      const manifest = tileCache.manifests.get(sceneId);
-      if (!manifest) return;
-      
-      // Determine target level based on zoom
-      const zoomLevel = state.viewer.getZoomLevel();
-      let targetLevelIndex;
-      
-      if (zoomLevel > 65) {
-        // High zoom = need highest resolution
-        targetLevelIndex = manifest.levels.length - 1;
-      } else if (zoomLevel > 35) {
-        // Medium zoom = medium resolution
-        targetLevelIndex = Math.min(1, manifest.levels.length - 1);
-      } else {
-        // Low zoom = low resolution is fine
-        targetLevelIndex = 0;
-      }
-      
-      // Only upgrade if needed
-      if (targetLevelIndex <= state.currentLevel) return;
-      
-      state.isUpgrading = true;
-      const targetLevel = manifest.levels[targetLevelIndex];
-      
-      console.log(`[Upgrade] ${pano.name}: level-${state.currentLevel} → level-${targetLevelIndex} (zoom: ${Math.round(zoomLevel)}%)`);
-      
-      try {
-        await state.viewer.setPanorama({
-          width: targetLevel.width,
-          cols: targetLevel.cols,
-          rows: targetLevel.rows,
-          baseUrl: pano.previewPath,
-          tileUrl: (col, row) => `${pano.tilesPath}level-${targetLevelIndex}/row-${row}/tile-${col}.webp`
-        });
-        
-        state.currentLevel = targetLevelIndex;
-        console.log(`[Upgrade] Complete: now at level-${targetLevelIndex}`);
-      } catch (err) {
-        console.warn('[Upgrade] Failed:', err);
-      } finally {
-        state.isUpgrading = false;
-      }
     }
     
     // Simple interval-based stats update (no performance impact)
@@ -2782,20 +2758,11 @@
       const manifest = await fetch(`${firstPano.tilesPath}manifest.json`).then(r => r.json());
       tileCache.manifests.set(firstPano.id, manifest);
       
-      // OPTIMIZATION: Start with LOW-RES level (like switchScene does)
-      const lowLevel = manifest.levels[LOADING_CONFIG.initialLevel];
-      state.currentLevel = LOADING_CONFIG.initialLevel;
-      
-      // Update tiles config with LOW-RES
-      CONFIG.tiles = {
-        baseUrl: firstPano.previewPath,
-        width: lowLevel.width,
-        cols: lowLevel.cols,
-        rows: lowLevel.rows,
-        tileUrl: (col, row) => `${firstPano.tilesPath}level-${LOADING_CONFIG.initialLevel}/row-${row}/tile-${col}.webp`
-      };
-      
+      // Build multi-level config for PSV (native zoom-based resolution switching)
+      CONFIG.tiles = buildPanoramaConfig(firstPano, manifest);
       CONFIG.initialView = firstPano.initialView;
+      
+      console.log('[Init] Multi-level config:', CONFIG.tiles.levels.map(l => `${l.id}: ${l.width}px [${l.zoomRange.join('-')}]`).join(', '));
       
       // Render scenes panel
       renderScenesPanel();
@@ -2807,11 +2774,6 @@
       state.viewer.addEventListener('ready', () => {
         updateMarkersForScene(firstPano);
         setupMarkerClickHandler();
-        
-        // Upgrade to high-res after initial load
-        setTimeout(() => {
-          upgradeToHighRes(firstPano.id);
-        }, LOADING_CONFIG.upgradeDelay);
         
         // Preload adjacent scenes
         preloadAdjacentScenes(firstPano.id);
