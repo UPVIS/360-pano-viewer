@@ -1635,13 +1635,7 @@
       state.viewer = new Viewer({
         container: elements.viewer,
         adapter: EquirectangularTilesAdapter,
-        panorama: {
-          width: CONFIG.tiles.width,
-          cols: CONFIG.tiles.cols,
-          rows: CONFIG.tiles.rows,
-          baseUrl: CONFIG.tiles.baseUrl,
-          tileUrl: CONFIG.tiles.tileUrl
-        },
+        panorama: CONFIG.tiles,  // Multi-level config with levels array
         defaultYaw: CONFIG.initialView.yaw,
         defaultPitch: CONFIG.initialView.pitch,
         defaultZoomLvl: 50,
