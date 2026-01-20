@@ -2241,9 +2241,9 @@
         const position = state.viewer.getPosition();
         const zoom = state.viewer.getZoomLevel();
         
-        // Show blur overlay with cached preview
-        const cachedPreview = tileCache.previews.get(state.currentScene);
-        transitionPreview.src = cachedPreview?.src || pano.previewPath;
+        // Capture current view as screenshot for blur transition
+        const canvas = state.viewer.renderer.renderer.domElement;
+        transitionPreview.src = canvas.toDataURL('image/jpeg', 0.5);
         transitionOverlay.classList.add('active');
         
         // Short fade-in before switching
