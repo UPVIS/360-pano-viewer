@@ -1461,22 +1461,24 @@
       
       console.log(`[Level] Switching: L${oldLevel} → L${newLevel} (${manifest.levels[newLevel].width}px)`);
       
-      // Get viewer canvas for smooth transition
-      const canvas = elements.viewer.querySelector('canvas');
+      // Use blur overlay for smooth transition
+      const transitionOverlay = $('#transition-overlay');
+      const transitionPreview = $('#transition-preview');
       
       try {
-        // No preview for level switches - keep current image visible until new tiles load
         const config = buildPanoramaConfig(pano, manifest, newLevel, false);
         
         // Remember current view
         const position = state.viewer.getPosition();
         const zoom = state.viewer.getZoomLevel();
         
-        // Slight fade to mask the transition
-        if (canvas) {
-          canvas.style.transition = 'opacity 150ms ease-out';
-          canvas.style.opacity = '0.85';
-        }
+        // Show blur overlay with cached preview
+        const cachedPreview = tileCache.previews.get(state.currentScene);
+        transitionPreview.src = cachedPreview?.src || pano.previewPath;
+        transitionOverlay.classList.add('active');
+        
+        // Short fade-in before switching
+        await new Promise(r => setTimeout(r, 100));
         
         await state.viewer.setPanorama(config);
         
@@ -1484,18 +1486,15 @@
         state.viewer.rotate(position);
         state.viewer.zoom(zoom);
         
-        // Fade back in
-        if (canvas) {
-          canvas.style.opacity = '1';
-          setTimeout(() => {
-            canvas.style.transition = '';
-          }, 150);
-        }
+        // Wait for tiles to start loading, then fade out
+        await new Promise(r => setTimeout(r, 150));
+        transitionOverlay.classList.remove('active');
         
         state.currentLevel = newLevel;
         console.log(`[Level] Now at L${newLevel}`);
       } catch (err) {
         console.warn('[Level] Switch failed:', err);
+        transitionOverlay.classList.remove('active');
       } finally {
         state.isLevelSwitching = false;
       }
