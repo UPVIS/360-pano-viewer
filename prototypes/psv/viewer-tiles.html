@@ -1387,7 +1387,7 @@
     // ==========================================
     const LOADING_CONFIG = {
       initialLevel: 0,           // Start mit low-res (8 Tiles statt 128)
-      upgradeDelay: 150,         // ms nach Transition bevor Upgrade
+      upgradeDelay: 800,         // ms nach Transition bevor Upgrade (längerer Delay für Smooth UX)
       preloadOnHover: true,      // Preload bei Hover auf Thumbnails
       preloadAdjacentCount: 2,   // Anzahl preloaded Szenen
       cacheMaxTiles: 150,        // Max cached Tiles
@@ -1522,7 +1522,8 @@
       showStats: CONFIG.showStats,
       gpuInfo: null,
       preloadedScenes: new Set(), // Scenes that have been preloaded
-      isUpgrading: false          // Currently upgrading resolution
+      isUpgrading: false,         // Currently upgrading resolution
+      isUserInteracting: false    // User is dragging/zooming
     };
     
     // ==========================================
@@ -1717,7 +1718,16 @@
       elements.statYaw.textContent = `${yawDeg}°`;
       elements.statPitch.textContent = `${pitchDeg}°`;
       
-      // Cache stats
+      // Cache stats - throttled to avoid performance impact
+      throttledUpdateCacheStats();
+    }
+    
+    // Throttle cache stats updates to max 2x per second
+    let lastCacheStatsUpdate = 0;
+    function throttledUpdateCacheStats() {
+      const now = performance.now();
+      if (now - lastCacheStatsUpdate < 500) return;
+      lastCacheStatsUpdate = now;
       updateCacheStats();
     }
     
@@ -2445,6 +2455,8 @@
       // Don't upgrade if we switched to a different scene
       if (sceneId !== state.currentScene) return;
       if (state.isUpgrading) return;
+      // Don't upgrade during user interaction (causes lag!)
+      if (state.isUserInteracting) return;
       
       const pano = getPanoramaById(sceneId);
       if (!pano) return;
@@ -2498,13 +2510,39 @@
       if (!state.viewer) return;
       
       let upgradeTimeout = null;
+      let lastUpgradeCheck = 0;
       
-      state.viewer.addEventListener('zoom-updated', () => {
-        // Debounce upgrade checks
+      // Track user interaction to avoid upgrades during dragging
+      state.viewer.addEventListener('before-animate', () => {
+        state.isUserInteracting = true;
+      });
+      
+      state.viewer.addEventListener('animation-end', () => {
+        state.isUserInteracting = false;
+        // Check for upgrade after interaction ends
+        scheduleUpgrade();
+      });
+      
+      function scheduleUpgrade() {
+        // Don't spam upgrades
+        const now = performance.now();
+        if (now - lastUpgradeCheck < 1000) return;
+        lastUpgradeCheck = now;
+        
         if (upgradeTimeout) clearTimeout(upgradeTimeout);
         upgradeTimeout = setTimeout(() => {
-          upgradeToHighRes(state.currentScene);
-        }, 300);
+          // Only upgrade when user is NOT actively interacting
+          if (!state.isUserInteracting && !state.isUpgrading) {
+            upgradeToHighRes(state.currentScene);
+          }
+        }, 500);
+      }
+      
+      state.viewer.addEventListener('zoom-updated', () => {
+        // Schedule upgrade after zoom changes (with longer debounce)
+        if (!state.isUserInteracting) {
+          scheduleUpgrade();
+        }
       });
     }
     
