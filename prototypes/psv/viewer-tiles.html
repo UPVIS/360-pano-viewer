@@ -1394,7 +1394,7 @@
         level0Max: 40,   // Use level-0 when zoom <= 40%
         level1Max: 70    // Use level-1 when zoom <= 70%, else level-2
       },
-      levelSwitchDebounce: 500   // ms to wait before switching levels
+      levelSwitchDebounce: 800   // ms to wait before switching levels (longer = less frequent)
     };
     
     // ==========================================
@@ -1461,6 +1461,9 @@
       
       console.log(`[Level] Switching: L${oldLevel} → L${newLevel} (${manifest.levels[newLevel].width}px)`);
       
+      // Get viewer canvas for smooth transition
+      const canvas = elements.viewer.querySelector('canvas');
+      
       try {
         // No preview for level switches - keep current image visible until new tiles load
         const config = buildPanoramaConfig(pano, manifest, newLevel, false);
@@ -1469,11 +1472,25 @@
         const position = state.viewer.getPosition();
         const zoom = state.viewer.getZoomLevel();
         
+        // Slight fade to mask the transition
+        if (canvas) {
+          canvas.style.transition = 'opacity 150ms ease-out';
+          canvas.style.opacity = '0.85';
+        }
+        
         await state.viewer.setPanorama(config);
         
         // Restore view
         state.viewer.rotate(position);
         state.viewer.zoom(zoom);
+        
+        // Fade back in
+        if (canvas) {
+          canvas.style.opacity = '1';
+          setTimeout(() => {
+            canvas.style.transition = '';
+          }, 150);
+        }
         
         state.currentLevel = newLevel;
         console.log(`[Level] Now at L${newLevel}`);
@@ -1836,11 +1853,12 @@
     function updateCacheStats() {
       const cacheStats = tileCache.getStats();
       
-      // Show current level and zoom
+      // Show current level, zoom, and switching state
       const zoom = state.viewer ? Math.round(state.viewer.getZoomLevel()) : 0;
       const manifest = tileCache.manifests.get(state.currentScene);
       const levelWidth = manifest?.levels[state.currentLevel]?.width || '?';
-      elements.currentLevel.textContent = `L${state.currentLevel} (${levelWidth}px)`;
+      const switchingIndicator = state.isLevelSwitching ? ' ⟳' : '';
+      elements.currentLevel.textContent = `L${state.currentLevel} @${zoom}%${switchingIndicator}`;
       elements.cacheSize.textContent = `${cacheStats.tiles}/${LOADING_CONFIG.cacheMaxTiles}`;
       elements.cacheHitRate.textContent = `${cacheStats.hitRate}%`;
       elements.preloadedScenes.textContent = `${state.preloadedScenes.size}`;
