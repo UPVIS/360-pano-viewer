@@ -1417,19 +1417,26 @@
     
     /**
      * Build panorama config for PSV at specific level
+     * @param {boolean} includePreview - Include blur preview (only for initial load, not level switches)
      */
-    function buildPanoramaConfig(pano, manifest, levelIndex = 1) {
+    function buildPanoramaConfig(pano, manifest, levelIndex = 1, includePreview = true) {
       // Clamp to valid range
       levelIndex = Math.max(0, Math.min(levelIndex, manifest.levels.length - 1));
       const level = manifest.levels[levelIndex];
       
-      return {
-        baseUrl: pano.previewPath,
+      const config = {
         width: level.width,
         cols: level.cols,
         rows: level.rows,
         tileUrl: (col, row) => `${pano.tilesPath}level-${levelIndex}/row-${row}/tile-${col}.webp`
       };
+      
+      // Only include preview for initial load, not for level switches
+      if (includePreview) {
+        config.baseUrl = pano.previewPath;
+      }
+      
+      return config;
     }
     
     /**
@@ -1455,7 +1462,8 @@
       console.log(`[Level] Switching: L${oldLevel} → L${newLevel} (${manifest.levels[newLevel].width}px)`);
       
       try {
-        const config = buildPanoramaConfig(pano, manifest, newLevel);
+        // No preview for level switches - keep current image visible until new tiles load
+        const config = buildPanoramaConfig(pano, manifest, newLevel, false);
         
         // Remember current view
         const position = state.viewer.getPosition();
