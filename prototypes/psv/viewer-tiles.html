@@ -282,7 +282,7 @@
     }
     
     /* ==========================================
-       STATS OVERLAY (Dev Mode)
+       STATS OVERLAY (Nerd Stats)
     ========================================== */
     .stats-overlay {
       position: absolute;
@@ -299,28 +299,76 @@
       -webkit-backdrop-filter: blur(12px);
       z-index: 90;
       opacity: 0.9;
-      transition: opacity var(--transition-fast);
+      transition: opacity var(--transition-fast), transform var(--transition-normal);
+      max-width: 200px;
+    }
+    
+    .stats-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-10px);
     }
     
     .stats-overlay:hover {
       opacity: 1;
     }
     
+    .stats-overlay .stats-title {
+      font-size: 0.5625rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.375rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .stats-overlay .stat-section {
+      margin-bottom: 0.5rem;
+    }
+    
+    .stats-overlay .stat-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .stats-overlay .stat-section-title {
+      font-size: 0.5rem;
+      color: var(--text-muted);
+      margin-bottom: 0.125rem;
+    }
+    
     .stats-overlay .stat-row {
       display: flex;
       justify-content: space-between;
-      gap: 1rem;
-      line-height: 1.5;
+      gap: 0.75rem;
+      line-height: 1.4;
+    }
+    
+    .stats-overlay .stat-label {
+      color: var(--text-secondary);
     }
     
     .stats-overlay .stat-value {
       color: var(--accent-color);
       font-weight: 600;
+      text-align: right;
+    }
+    
+    .stats-overlay .stat-value.warn {
+      color: #fbbf24;
+    }
+    
+    .stats-overlay .stat-value.error {
+      color: #ef4444;
     }
     
     @media (max-width: 768px) {
       .stats-overlay {
-        display: none;
+        top: 0.5rem;
+        left: 0.5rem;
+        padding: 0.5rem 0.625rem;
+        font-size: 0.625rem;
       }
     }
     
@@ -751,23 +799,64 @@
     <!-- Viewer -->
     <div id="viewer" tabindex="0" aria-label="Interaktives 360-Grad Panorama"></div>
     
-    <!-- Stats Overlay (Dev Mode) -->
-    <div class="stats-overlay" aria-hidden="true">
-      <div class="stat-row">
-        <span>Tiles:</span>
-        <span class="stat-value" id="tiles-loaded">0</span>
+    <!-- Stats Overlay (Nerd Stats) -->
+    <div class="stats-overlay" id="stats-overlay" aria-hidden="true">
+      <div class="stats-title">Nerd Stats</div>
+      
+      <div class="stat-section">
+        <div class="stat-row">
+          <span class="stat-label">FPS</span>
+          <span class="stat-value" id="fps-display">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Frame Time</span>
+          <span class="stat-value" id="frame-time">--</span>
+        </div>
       </div>
-      <div class="stat-row">
-        <span>FPS:</span>
-        <span class="stat-value" id="fps-display">--</span>
+      
+      <div class="stat-section">
+        <div class="stat-row">
+          <span class="stat-label">Tiles</span>
+          <span class="stat-value" id="tiles-loaded">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Requests</span>
+          <span class="stat-value" id="active-requests">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Load Time</span>
+          <span class="stat-value" id="load-time">--</span>
+        </div>
       </div>
-      <div class="stat-row">
-        <span>Zoom:</span>
-        <span class="stat-value" id="zoom-level">50%</span>
+      
+      <div class="stat-section">
+        <div class="stat-row">
+          <span class="stat-label">Yaw</span>
+          <span class="stat-value" id="stat-yaw">0°</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Pitch</span>
+          <span class="stat-value" id="stat-pitch">0°</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Zoom</span>
+          <span class="stat-value" id="zoom-level">50%</span>
+        </div>
       </div>
-      <div class="stat-row">
-        <span>Load:</span>
-        <span class="stat-value" id="load-time">--</span>
+      
+      <div class="stat-section">
+        <div class="stat-row">
+          <span class="stat-label">Memory</span>
+          <span class="stat-value" id="memory-usage">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">GPU</span>
+          <span class="stat-value" id="gpu-info">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Resolution</span>
+          <span class="stat-value" id="resolution-info">--</span>
+        </div>
       </div>
     </div>
     
@@ -850,6 +939,24 @@
       </div>
       
       <div class="setting-group">
+        <div class="setting-group-title">Pitch-Limits</div>
+        <div class="setting-row">
+          <span class="setting-label">Min (unten)</span>
+          <div class="range-container">
+            <input type="range" class="range-slider" id="slider-pitch-min" min="-90" max="0" value="-30" aria-label="Minimaler Pitch">
+            <span class="range-value" id="pitch-min-value">-30°</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Max (oben)</span>
+          <div class="range-container">
+            <input type="range" class="range-slider" id="slider-pitch-max" min="0" max="90" value="30" aria-label="Maximaler Pitch">
+            <span class="range-value" id="pitch-max-value">30°</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="setting-group">
         <div class="setting-group-title">Aktuell</div>
         <div class="setting-row">
           <span class="setting-label">Blickrichtung</span>
@@ -862,6 +969,14 @@
         <div class="setting-row">
           <span class="setting-label">Zoom</span>
           <span class="setting-value" id="current-zoom">50%</span>
+        </div>
+      </div>
+      
+      <div class="setting-group">
+        <div class="setting-group-title">Entwickler</div>
+        <div class="setting-row">
+          <span class="setting-label">Nerd-Stats anzeigen</span>
+          <div class="toggle active" id="toggle-stats" role="switch" aria-checked="true" tabindex="0"></div>
         </div>
       </div>
     </div>
@@ -898,6 +1013,32 @@
     import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
     
     // ==========================================
+    // LOCALSTORAGE KEYS
+    // ==========================================
+    const STORAGE_KEYS = {
+      pitchMin: 'pano-pitch-min',
+      pitchMax: 'pano-pitch-max',
+      showStats: 'pano-show-stats'
+    };
+    
+    // ==========================================
+    // LOAD SETTINGS FROM LOCALSTORAGE
+    // ==========================================
+    function loadSettings() {
+      return {
+        pitchMin: parseInt(localStorage.getItem(STORAGE_KEYS.pitchMin)) || -30,
+        pitchMax: parseInt(localStorage.getItem(STORAGE_KEYS.pitchMax)) || 30,
+        showStats: localStorage.getItem(STORAGE_KEYS.showStats) !== 'false' // default true
+      };
+    }
+    
+    function saveSettings(key, value) {
+      localStorage.setItem(key, value);
+    }
+    
+    const savedSettings = loadSettings();
+    
+    // ==========================================
     // CONFIGURATION
     // ==========================================
     const CONFIG = {
@@ -914,8 +1055,8 @@
         fov: 70
       },
       pitchLimits: {
-        min: -30,  // degrees
-        max: 30    // degrees
+        min: savedSettings.pitchMin,
+        max: savedSettings.pitchMax
       },
       fovLimits: {
         min: 30,
@@ -923,7 +1064,8 @@
       },
       autorotate: {
         speed: 0.5  // rpm
-      }
+      },
+      showStats: savedSettings.showStats
     };
     
     // ==========================================
@@ -938,9 +1080,13 @@
       settingsVisible: false,
       currentScene: 'scene-1',
       tilesLoaded: 0,
+      activeRequests: 0,
       fps: 0,
+      frameTime: 0,
       lastFrameTime: performance.now(),
-      frameCount: 0
+      frameCount: 0,
+      showStats: CONFIG.showStats,
+      gpuInfo: null
     };
     
     // ==========================================
@@ -957,18 +1103,31 @@
       compass: $('#compass'),
       scenesPanel: $('#scenes-panel'),
       settingsPanel: $('#settings-panel'),
+      statsOverlay: $('#stats-overlay'),
       toast: $('#toast'),
       toastMessage: $('#toast-message'),
       keyboardHint: $('#keyboard-hint'),
       // Stats
       tilesLoaded: $('#tiles-loaded'),
+      activeRequests: $('#active-requests'),
       fpsDisplay: $('#fps-display'),
+      frameTime: $('#frame-time'),
       zoomLevel: $('#zoom-level'),
       loadTime: $('#load-time'),
+      statYaw: $('#stat-yaw'),
+      statPitch: $('#stat-pitch'),
+      memoryUsage: $('#memory-usage'),
+      gpuInfo: $('#gpu-info'),
+      resolutionInfo: $('#resolution-info'),
       // Settings
       toggleAutorotate: $('#toggle-autorotate'),
+      toggleStats: $('#toggle-stats'),
       sliderSpeed: $('#slider-speed'),
       speedValue: $('#speed-value'),
+      sliderPitchMin: $('#slider-pitch-min'),
+      sliderPitchMax: $('#slider-pitch-max'),
+      pitchMinValue: $('#pitch-min-value'),
+      pitchMaxValue: $('#pitch-max-value'),
       currentYaw: $('#current-yaw'),
       currentPitch: $('#current-pitch'),
       currentZoom: $('#current-zoom'),
@@ -1045,6 +1204,18 @@
       // Start FPS counter
       startFPSCounter();
       
+      // Start memory monitoring
+      startMemoryMonitor();
+      
+      // Get GPU info
+      detectGPU();
+      
+      // Set resolution info
+      updateResolutionInfo();
+      
+      // Initialize settings from saved values
+      initializeSettings();
+      
       // Initial UI update
       updateUI();
       
@@ -1087,6 +1258,37 @@
       // Settings values
       elements.currentYaw.textContent = `${yawDeg}°`;
       elements.currentPitch.textContent = `${pitchDeg}°`;
+      
+      // Stats overlay
+      elements.statYaw.textContent = `${yawDeg}°`;
+      elements.statPitch.textContent = `${pitchDeg}°`;
+    }
+    
+    function initializeSettings() {
+      // Pitch limits from config
+      elements.sliderPitchMin.value = CONFIG.pitchLimits.min;
+      elements.sliderPitchMax.value = CONFIG.pitchLimits.max;
+      elements.pitchMinValue.textContent = `${CONFIG.pitchLimits.min}°`;
+      elements.pitchMaxValue.textContent = `${CONFIG.pitchLimits.max}°`;
+      
+      // Stats visibility
+      elements.toggleStats.classList.toggle('active', state.showStats);
+      elements.toggleStats.setAttribute('aria-checked', state.showStats);
+      elements.statsOverlay.classList.toggle('hidden', !state.showStats);
+    }
+    
+    function updateStatsVisibility() {
+      elements.statsOverlay.classList.toggle('hidden', !state.showStats);
+      elements.toggleStats.classList.toggle('active', state.showStats);
+      elements.toggleStats.setAttribute('aria-checked', state.showStats);
+      saveSettings(STORAGE_KEYS.showStats, state.showStats);
+    }
+    
+    function updateResolutionInfo() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      elements.resolutionInfo.textContent = `${width}x${height}@${dpr}x`;
     }
     
     function showToast(message) {
@@ -1142,13 +1344,27 @@
     // FPS COUNTER
     // ==========================================
     function startFPSCounter() {
+      let lastTime = performance.now();
+      
       function updateFPS() {
         state.frameCount++;
         const now = performance.now();
+        const delta = now - lastTime;
+        lastTime = now;
+        
+        // Update frame time every frame for smoothness
+        state.frameTime = delta;
         
         if (now - state.lastFrameTime >= 1000) {
           state.fps = Math.round(state.frameCount * 1000 / (now - state.lastFrameTime));
+          
+          // Update display
           elements.fpsDisplay.textContent = state.fps;
+          elements.fpsDisplay.className = 'stat-value' + (state.fps < 30 ? ' error' : state.fps < 50 ? ' warn' : '');
+          
+          elements.frameTime.textContent = `${state.frameTime.toFixed(1)}ms`;
+          elements.frameTime.className = 'stat-value' + (state.frameTime > 33 ? ' error' : state.frameTime > 20 ? ' warn' : '');
+          
           state.frameCount = 0;
           state.lastFrameTime = now;
         }
@@ -1159,6 +1375,70 @@
     }
     
     // ==========================================
+    // MEMORY MONITOR
+    // ==========================================
+    function startMemoryMonitor() {
+      function updateMemory() {
+        if (performance.memory) {
+          const usedMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+          const totalMB = Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024);
+          const percentage = Math.round((usedMB / totalMB) * 100);
+          
+          elements.memoryUsage.textContent = `${usedMB}MB`;
+          elements.memoryUsage.className = 'stat-value' + (percentage > 80 ? ' error' : percentage > 60 ? ' warn' : '');
+        } else {
+          elements.memoryUsage.textContent = 'N/A';
+        }
+      }
+      
+      updateMemory();
+      setInterval(updateMemory, 2000);
+    }
+    
+    // ==========================================
+    // GPU DETECTION
+    // ==========================================
+    function detectGPU() {
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            // Shorten GPU name for display
+            let shortName = renderer
+              .replace(/ANGLE \(/, '')
+              .replace(/\)$/, '')
+              .replace(/Direct3D11 vs_5_0 ps_5_0/, '')
+              .replace(/Metal - /, '')
+              .replace(/Apple /, '')
+              .replace(/AMD /, '')
+              .replace(/NVIDIA /, '')
+              .replace(/Intel\(R\) /, '')
+              .trim();
+            
+            // Truncate if too long
+            if (shortName.length > 15) {
+              shortName = shortName.substring(0, 12) + '...';
+            }
+            
+            state.gpuInfo = shortName;
+            elements.gpuInfo.textContent = shortName;
+          } else {
+            elements.gpuInfo.textContent = 'WebGL';
+          }
+        } else {
+          elements.gpuInfo.textContent = 'No WebGL';
+          elements.gpuInfo.className = 'stat-value error';
+        }
+      } catch (e) {
+        elements.gpuInfo.textContent = 'Error';
+      }
+    }
+    
+    // ==========================================
     // TILE LOADING TRACKER
     // ==========================================
     const originalFetch = window.fetch;
@@ -1166,7 +1446,19 @@
       const url = args[0];
       if (typeof url === 'string' && url.includes('/tile-')) {
         state.tilesLoaded++;
+        state.activeRequests++;
         elements.tilesLoaded.textContent = state.tilesLoaded;
+        elements.activeRequests.textContent = state.activeRequests;
+        
+        return originalFetch.apply(this, args).then(response => {
+          state.activeRequests--;
+          elements.activeRequests.textContent = state.activeRequests;
+          return response;
+        }).catch(err => {
+          state.activeRequests--;
+          elements.activeRequests.textContent = state.activeRequests;
+          throw err;
+        });
       }
       return originalFetch.apply(this, args);
     };
@@ -1261,6 +1553,38 @@
         state.autorotatePlugin.setOptions({ autorotateSpeed: `${speed / 10}rpm` });
       }
     });
+    
+    // Pitch limit sliders
+    elements.sliderPitchMin.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      CONFIG.pitchLimits.min = value;
+      elements.pitchMinValue.textContent = `${value}°`;
+      saveSettings(STORAGE_KEYS.pitchMin, value);
+    });
+    
+    elements.sliderPitchMax.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      CONFIG.pitchLimits.max = value;
+      elements.pitchMaxValue.textContent = `${value}°`;
+      saveSettings(STORAGE_KEYS.pitchMax, value);
+    });
+    
+    // Stats toggle
+    function toggleStats() {
+      state.showStats = !state.showStats;
+      updateStatsVisibility();
+    }
+    
+    elements.toggleStats.addEventListener('click', toggleStats);
+    elements.toggleStats.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleStats();
+      }
+    });
+    
+    // Update resolution on resize
+    window.addEventListener('resize', updateResolutionInfo);
     
     // Panels
     elements.btnSettings.addEventListener('click', () => {
