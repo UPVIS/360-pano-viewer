@@ -71,17 +71,18 @@
   text-overflow: ellipsis;
 }
 
-/* Navigation Arrow Styles */
+/* Navigation Arrow Styles - 3D Perspective Floor Arrows */
 .nav-arrow-marker {
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
   transition: transform 0.2s ease;
+  transform-style: preserve-3d;
 }
 
 .nav-arrow-marker:hover {
-  transform: scale(1.1) translateY(-4px);
+  transform: scale(1.15) translateY(-5px);
 }
 
 .nav-arrow-marker.editable {
@@ -92,34 +93,64 @@
   cursor: grabbing;
 }
 
+/* 3D Floor Arrow with Perspective */
 .floor-arrow {
-  width: 48px;
-  height: 40px;
-  color: rgba(255, 255, 255, 0.9);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-  transition: transform 0.2s ease, filter 0.2s ease;
+  width: 80px;
+  height: 50px;
+  position: relative;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.2s ease;
 }
 
-.nav-arrow-marker:hover .floor-arrow {
-  color: rgba(74, 222, 128, 1);
-  filter: drop-shadow(0 4px 8px rgba(74, 222, 128, 0.4));
+.floor-arrow:hover {
+  transform: scale(1.1);
 }
 
-.floor-arrow svg {
+.floor-arrow-shape {
   width: 100%;
   height: 100%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(200,200,200,0.9) 100%);
+  clip-path: polygon(50% 0%, 100% 70%, 80% 70%, 80% 100%, 20% 100%, 20% 70%, 0% 70%);
+  transform: perspective(150px) rotateX(55deg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  animation: floor-arrow-pulse 2s ease-in-out infinite;
+}
+
+.nav-arrow-marker:hover .floor-arrow-shape {
+  background: linear-gradient(180deg, rgba(74, 222, 128, 0.95) 0%, rgba(34, 197, 94, 0.9) 100%);
+  box-shadow: 0 10px 30px rgba(74, 222, 128, 0.4);
+}
+
+@keyframes floor-arrow-pulse {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 15px 40px rgba(255, 255, 255, 0.2), 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .nav-label {
-  margin-top: 4px;
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 4px 12px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   color: white;
   white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.nav-arrow-marker:hover .nav-label {
+  opacity: 1;
 }
 
 /* Pulse animation for editable markers */
@@ -138,4 +169,175 @@
 .poi-marker.editable .poi-icon,
 .nav-arrow-marker.editable .floor-arrow {
   animation: pulse-ring 2s infinite;
+}
+
+/* ==========================================
+   NATIVE PSV TOOLTIP STYLES (Dark Mode)
+   These tooltips are attached to markers and follow them
+========================================== */
+.psv-tooltip {
+  background: rgba(10, 10, 10, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(12px);
+  max-width: 480px !important;
+  width: max-content !important;
+  padding: 0 !important;
+  color: white !important;
+}
+
+.psv-tooltip-content {
+  padding: 0 !important;
+}
+
+/* Hide the arrow completely */
+.psv-tooltip-arrow {
+  display: none !important;
+}
+
+/* POI Native Tooltip Content Styling */
+.poi-native-tooltip {
+  padding: 12px;
+  color: white;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.poi-native-tooltip-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.poi-native-tooltip-content {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.poi-native-tooltip-content p {
+  margin: 0 0 8px 0;
+}
+
+.poi-native-tooltip-content p:last-child {
+  margin-bottom: 0;
+}
+
+.poi-native-tooltip-content a {
+  color: #4ade80;
+  text-decoration: none;
+}
+
+.poi-native-tooltip-content a:hover {
+  text-decoration: underline;
+}
+
+.poi-native-tooltip-content img {
+  max-width: 100%;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.poi-native-tooltip-content iframe {
+  max-width: 100%;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+/* POI Tooltip - Image */
+.poi-tooltip-image {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  margin-bottom: 8px;
+}
+
+/* POI Tooltip - Video Container */
+.poi-tooltip-video {
+  position: relative;
+  width: 420px;
+  max-width: calc(100vw - 60px);
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 8px;
+}
+
+.poi-tooltip-video iframe,
+.poi-tooltip-video video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* POI Tooltip - Video Link Button */
+.poi-tooltip-video-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #dc2626;
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.poi-tooltip-video-link:hover {
+  background: #b91c1c;
+  text-decoration: none;
+}
+
+/* POI Tooltip - Link */
+.poi-tooltip-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  color: #4ade80;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.poi-tooltip-link:hover {
+  background: rgba(74, 222, 128, 0.25);
+  text-decoration: none;
+}
+
+.poi-tooltip-link svg {
+  flex-shrink: 0;
+}
+
+/* POI Tooltip - URL Display */
+.poi-tooltip-url {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  word-break: break-all;
+  margin: 0 0 8px 0;
+}
+
+/* POI Tooltip - Description */
+.poi-tooltip-description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 8px 0 0 0;
 }

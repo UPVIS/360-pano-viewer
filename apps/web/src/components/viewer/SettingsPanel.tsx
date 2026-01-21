@@ -3,24 +3,36 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useEditorStore } from '@/stores/editorStore'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface SettingsPanelProps {
   onAutorotateChange?: (enabled: boolean) => void
   onSpeedChange?: (speed: number) => void
+  onPitchLimitsChange?: (min: number, max: number) => void
 }
 
-export function SettingsPanel({ onAutorotateChange, onSpeedChange }: SettingsPanelProps) {
+export function SettingsPanel({ onAutorotateChange, onSpeedChange, onPitchLimitsChange }: SettingsPanelProps) {
   const { 
     settingsVisible, 
     toggleSettings, 
     isAutorotating, 
     setAutorotating,
-    viewerPosition 
+    viewerPosition,
+    showStats,
+    toggleStats,
+    pitchLimits,
+    setPitchLimits
   } = useEditorStore()
 
   const [speed, setSpeed] = useState(5)
-  const [showStats, setShowStats] = useState(false)
+  const [localPitchMin, setLocalPitchMin] = useState(pitchLimits.min)
+  const [localPitchMax, setLocalPitchMax] = useState(pitchLimits.max)
+
+  // Sync local state with store
+  useEffect(() => {
+    setLocalPitchMin(pitchLimits.min)
+    setLocalPitchMax(pitchLimits.max)
+  }, [pitchLimits])
 
   if (!settingsVisible) return null
 
@@ -32,6 +44,18 @@ export function SettingsPanel({ onAutorotateChange, onSpeedChange }: SettingsPan
   const handleSpeedChange = (value: number) => {
     setSpeed(value)
     onSpeedChange?.(value)
+  }
+
+  const handlePitchMinChange = (value: number) => {
+    setLocalPitchMin(value)
+    setPitchLimits({ min: value, max: localPitchMax })
+    onPitchLimitsChange?.(value, localPitchMax)
+  }
+
+  const handlePitchMaxChange = (value: number) => {
+    setLocalPitchMax(value)
+    setPitchLimits({ min: localPitchMin, max: value })
+    onPitchLimitsChange?.(localPitchMin, value)
   }
 
   // Convert radians to degrees
@@ -105,6 +129,45 @@ export function SettingsPanel({ onAutorotateChange, onSpeedChange }: SettingsPan
           </div>
         </div>
 
+        {/* Pitch Limits Section */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-medium text-muted-foreground">Blickwinkel-Limits</h4>
+          
+          {/* Max Pitch (look up) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pitch-max">Nach oben (max)</Label>
+              <span className="text-sm text-muted-foreground">{localPitchMax}°</span>
+            </div>
+            <input
+              id="pitch-max"
+              type="range"
+              min="0"
+              max="90"
+              value={localPitchMax}
+              onChange={(e) => handlePitchMaxChange(parseInt(e.target.value))}
+              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
+          
+          {/* Min Pitch (look down) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pitch-min">Nach unten (min)</Label>
+              <span className="text-sm text-muted-foreground">{localPitchMin}°</span>
+            </div>
+            <input
+              id="pitch-min"
+              type="range"
+              min="-90"
+              max="0"
+              value={localPitchMin}
+              onChange={(e) => handlePitchMinChange(parseInt(e.target.value))}
+              className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
+        </div>
+
         {/* Position Section */}
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-muted-foreground">Position</h4>
@@ -132,7 +195,7 @@ export function SettingsPanel({ onAutorotateChange, onSpeedChange }: SettingsPan
             id="stats"
             role="switch"
             aria-checked={showStats}
-            onClick={() => setShowStats(!showStats)}
+            onClick={toggleStats}
             className={cn(
               'w-11 h-6 rounded-full transition-colors',
               showStats ? 'bg-primary' : 'bg-secondary'

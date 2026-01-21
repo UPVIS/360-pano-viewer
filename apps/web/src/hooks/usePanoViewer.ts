@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Viewer } from '@photo-sphere-viewer/core'
 import { EquirectangularTilesAdapter } from '@photo-sphere-viewer/equirectangular-tiles-adapter'
-import { MarkersPlugin, type Marker } from '@photo-sphere-viewer/markers-plugin'
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin'
 import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin'
 
 // Import styles
@@ -18,6 +18,10 @@ export interface PanoViewerOptions {
   }
   autoRotate?: boolean
   autoRotateSpeed?: number
+  pitchLimits?: {
+    min: number // In degrees
+    max: number // In degrees
+  }
 }
 
 export interface TileManifest {
@@ -43,12 +47,19 @@ export interface MarkerData {
   [key: string]: unknown
 }
 
+export interface MarkerTooltip {
+  content: string
+  position?: 'top' | 'bottom' | 'left' | 'right'
+  trigger?: 'hover' | 'click'
+}
+
 export interface MarkerConfig {
   id: string
   position: Position3D
   html: string
   anchor?: string
   data?: MarkerData
+  tooltip?: MarkerTooltip
 }
 
 export interface PanoViewerCallbacks {
@@ -66,6 +77,7 @@ export function usePanoViewer(
   const markersPluginRef = useRef<MarkersPlugin | null>(null)
   const autorotatePluginRef = useRef<AutorotatePlugin | null>(null)
   const callbacksRef = useRef(callbacks)
+  const pitchLimitsRef = useRef<{ min: number; max: number }>({ min: -Math.PI / 4, max: Math.PI / 4 })
   
   const [isReady, setIsReady] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -120,8 +132,10 @@ export function usePanoViewer(
           [MarkersPlugin, {}],
           [AutorotatePlugin, {
             autorotatePitch: 0,
-            autostartDelay: null,
-            autorotateSpeed: `${options.autoRotateSpeed ?? 0.5}rpm`
+            autostartDelay: null, // Disable auto-start completely
+            autostartOnIdle: false,
+            // Use slower speed for smoother rotation (0.3 rpm = 1 full rotation in ~3 minutes)
+            autorotateSpeed: `${options.autoRotateSpeed ?? 0.3}rpm`
           }]
         ]
       })
@@ -148,8 +162,16 @@ export function usePanoViewer(
         callbacksRef.current?.onClick?.({ yaw, pitch })
       })
 
-      // Position update event
+      // Position update event with pitch clamping
       viewer.addEventListener('position-updated', ({ position }) => {
+        const { min, max } = pitchLimitsRef.current
+        
+        // Clamp pitch if it exceeds limits
+        if (position.pitch < min || position.pitch > max) {
+          const clampedPitch = Math.max(min, Math.min(max, position.pitch))
+          viewer.rotate({ yaw: position.yaw, pitch: clampedPitch })
+        }
+        
         callbacksRef.current?.onPositionUpdate?.({
           yaw: position.yaw,
           pitch: position.pitch
@@ -193,13 +215,25 @@ export function usePanoViewer(
       // Ignore if marker doesn't exist
     }
 
-    markersPluginRef.current.addMarker({
+    const markerOptions: Record<string, unknown> = {
       id: config.id,
       position: config.position,
       html: config.html,
       anchor: config.anchor || 'center center',
       data: config.data
-    })
+    }
+
+    // Add tooltip if provided
+    if (config.tooltip) {
+      markerOptions.tooltip = {
+        content: config.tooltip.content,
+        position: config.tooltip.position || 'top',
+        trigger: config.tooltip.trigger || 'click'
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    markersPluginRef.current.addMarker(markerOptions as any)
   }, [])
 
   const removeMarker = useCallback((markerId: string) => {
@@ -215,6 +249,30 @@ export function usePanoViewer(
   const clearMarkers = useCallback(() => {
     if (!markersPluginRef.current) return
     markersPluginRef.current.clearMarkers()
+  }, [])
+
+  // Show/hide marker tooltips (native PSV tooltips that follow the marker)
+  const showMarkerTooltip = useCallback((markerId: string) => {
+    if (!markersPluginRef.current) return
+    try {
+      markersPluginRef.current.showMarkerTooltip(markerId)
+    } catch {
+      // Marker might not exist
+    }
+  }, [])
+
+  const hideMarkerTooltip = useCallback((markerId: string) => {
+    if (!markersPluginRef.current) return
+    try {
+      markersPluginRef.current.hideMarkerTooltip(markerId)
+    } catch {
+      // Marker might not exist
+    }
+  }, [])
+
+  const hideAllTooltips = useCallback(() => {
+    if (!markersPluginRef.current) return
+    markersPluginRef.current.hideAllTooltips()
   }, [])
 
   const updateMarkerPosition = useCallback((markerId: string, position: Position3D) => {
@@ -242,11 +300,54 @@ export function usePanoViewer(
     viewerRef.current?.zoom(level)
   }, [])
 
+  // Zoom controls
+  const zoomIn = useCallback(() => {
+    if (!viewerRef.current) return
+    const current = viewerRef.current.getZoomLevel()
+    viewerRef.current.zoom(Math.min(100, current + 10))
+  }, [])
+
+  const zoomOut = useCallback(() => {
+    if (!viewerRef.current) return
+    const current = viewerRef.current.getZoomLevel()
+    viewerRef.current.zoom(Math.max(0, current - 10))
+  }, [])
+
+  // Autorotation controls
+  const startAutorotate = useCallback(() => {
+    autorotatePluginRef.current?.start()
+  }, [])
+
+  const stopAutorotate = useCallback(() => {
+    autorotatePluginRef.current?.stop()
+  }, [])
+
+  const isAutorotating = useCallback(() => {
+    return autorotatePluginRef.current?.isEnabled() ?? false
+  }, [])
+
   const toggleAutorotate = useCallback(() => {
     if (autorotatePluginRef.current?.isEnabled()) {
       autorotatePluginRef.current.stop()
     } else {
       autorotatePluginRef.current?.start()
+    }
+  }, [])
+
+  // Set pitch limits (min/max in degrees)
+  const setPitchRange = useCallback((minDegrees: number, maxDegrees: number) => {
+    // Convert degrees to radians and store in ref
+    const minRadians = (minDegrees * Math.PI) / 180
+    const maxRadians = (maxDegrees * Math.PI) / 180
+    pitchLimitsRef.current = { min: minRadians, max: maxRadians }
+    
+    // If viewer exists and current pitch exceeds new limits, clamp it
+    if (viewerRef.current) {
+      const currentPos = viewerRef.current.getPosition()
+      if (currentPos.pitch < minRadians || currentPos.pitch > maxRadians) {
+        const clampedPitch = Math.max(minRadians, Math.min(maxRadians, currentPos.pitch))
+        viewerRef.current.rotate({ yaw: currentPos.yaw, pitch: clampedPitch })
+      }
     }
   }, [])
 
@@ -260,6 +361,71 @@ export function usePanoViewer(
 
   const getZoomLevel = useCallback(() => {
     return viewerRef.current?.getZoomLevel()
+  }, [])
+
+  // Convert 3D coordinates (yaw, pitch) to screen coordinates (x, y)
+  const dataToScreenCoords = useCallback((position: Position3D): { x: number; y: number } | null => {
+    if (!viewerRef.current) return null
+    
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const viewer = viewerRef.current as any
+      const coords = viewer.dataToViewerCoords({ yaw: position.yaw, pitch: position.pitch })
+      if (coords) {
+        return { x: coords.x, y: coords.y }
+      }
+    } catch {
+      // Position might be behind camera
+    }
+    return null
+  }, [])
+
+  // Switch panorama without destroying viewer
+  const switchPanorama = useCallback(async (
+    tilesPath: string,
+    previewPath: string,
+    initialView?: { yaw: number; pitch: number; fov?: number }
+  ) => {
+    if (!viewerRef.current) return
+
+    setIsLoading(true)
+
+    try {
+      // Load manifest for new panorama
+      const manifestResponse = await fetch(`${tilesPath}manifest.json`)
+      if (!manifestResponse.ok) {
+        throw new Error('Failed to load tile manifest')
+      }
+      const manifest: TileManifest = await manifestResponse.json()
+
+      // Use level 1 (4K) as default
+      const levelIndex = Math.min(1, manifest.levels.length - 1)
+      const level = manifest.levels[levelIndex]
+
+      // Use setPanorama to switch without destroying viewer
+      await viewerRef.current.setPanorama({
+        width: level.width,
+        cols: level.cols,
+        rows: level.rows,
+        baseUrl: previewPath,
+        tileUrl: (col: number, row: number) => 
+          `${tilesPath}level-${levelIndex}/row-${row}/tile-${col}.webp`
+      })
+
+      // Rotate to initial view if provided
+      if (initialView) {
+        viewerRef.current.rotate({ 
+          yaw: initialView.yaw, 
+          pitch: initialView.pitch 
+        })
+        viewerRef.current.zoom(50)
+      }
+
+      setIsLoading(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to switch panorama')
+      setIsLoading(false)
+    }
   }, [])
 
   // Get canvas for screenshots
@@ -292,12 +458,26 @@ export function usePanoViewer(
     removeMarker,
     clearMarkers,
     updateMarkerPosition,
+    showMarkerTooltip,
+    hideMarkerTooltip,
+    hideAllTooltips,
     // Controls
     rotate,
     setZoom,
+    zoomIn,
+    zoomOut,
+    setPitchRange,
+    // Autorotation
+    startAutorotate,
+    stopAutorotate,
+    isAutorotating,
     toggleAutorotate,
+    // Position
     getPosition,
     getZoomLevel,
-    getCanvas
+    getCanvas,
+    dataToScreenCoords,
+    // Scene switching
+    switchPanorama
   }
 }

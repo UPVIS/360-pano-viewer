@@ -54,6 +54,7 @@ export interface Panorama {
 export interface Project {
   id: string
   name: string
+  slug: string  // URL-friendly identifier, e.g. "mein-panorama"
   panoramas: Panorama[]
 }
 
@@ -95,6 +96,43 @@ interface ProjectState {
 // ID Generator
 const generateId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+// LocalStorage key for project data
+const STORAGE_KEY = 'pano360-project'
+
+// Save project to localStorage
+const saveToStorage = (project: Project | null) => {
+  if (!project) return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(project))
+    console.log('[AutoSave] Projekt gespeichert')
+  } catch (err) {
+    console.error('[AutoSave] Fehler beim Speichern:', err)
+  }
+}
+
+// Load project from localStorage
+export const loadFromStorage = (): Project | null => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY)
+    if (data) {
+      return JSON.parse(data) as Project
+    }
+  } catch (err) {
+    console.error('[Storage] Fehler beim Laden:', err)
+  }
+  return null
+}
+
+// Clear saved project from localStorage
+export const clearStorage = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+    console.log('[Storage] Gespeichertes Projekt gelöscht')
+  } catch (err) {
+    console.error('[Storage] Fehler beim Löschen:', err)
+  }
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -346,3 +384,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return state.project.panoramas.find(p => p.id === id) || null
   }
 }))
+
+// Auto-save on project changes (debounced)
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
+
+useProjectStore.subscribe((state, prevState) => {
+  // Only save if project changed (not just currentSceneId)
+  if (state.project && state.project !== prevState.project) {
+    // Debounce saves to avoid too frequent writes
+    if (saveTimeout) clearTimeout(saveTimeout)
+    saveTimeout = setTimeout(() => {
+      saveToStorage(state.project)
+    }, 500)
+  }
+})

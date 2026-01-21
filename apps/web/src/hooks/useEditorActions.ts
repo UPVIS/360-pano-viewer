@@ -1,15 +1,20 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useEditorStore } from '@/stores/editorStore'
 import { useProjectStore, type Position3D } from '@/stores/projectStore'
 import type { MarkerConfig, MarkerData } from './usePanoViewer'
 
-interface UseEditorActionsProps {
+interface ViewerMethods {
   addMarker: (config: MarkerConfig) => void
   removeMarker: (id: string) => void
   clearMarkers: () => void
+  switchPanorama?: (tilesPath: string, previewPath: string, initialView?: { yaw: number; pitch: number; fov?: number }) => Promise<void>
 }
 
-export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseEditorActionsProps) {
+interface UseEditorActionsProps {
+  getViewerMethods: () => ViewerMethods | null
+}
+
+export function useEditorActions({ getViewerMethods }: UseEditorActionsProps) {
   const {
     mode,
     placementMode,
@@ -27,7 +32,9 @@ export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseE
     addNavArrow,
     updatePoiPosition,
     updateNavArrowPosition,
-    getCurrentPanorama
+    getCurrentPanorama,
+    getPanoramaById,
+    setCurrentScene
   } = useProjectStore()
 
   // Generate POI marker HTML
@@ -43,41 +50,148 @@ export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseE
     </div>`
   }, [])
 
-  // Generate Nav Arrow marker HTML
+  // Generate Nav Arrow marker HTML with 3D perspective
   const createNavMarkerHtml = useCallback((nav: { id: string; label?: string }, isEditor: boolean) => {
     return `<div class="nav-arrow-marker ${isEditor ? 'editable' : ''}" data-nav-id="${nav.id}">
-      <div class="floor-arrow">
-        <svg viewBox="0 0 100 80" fill="currentColor">
-          <polygon points="50,0 100,60 75,60 75,80 25,80 25,60 0,60"/>
-        </svg>
+      <div class="floor-arrow" role="button" aria-label="Navigation: ${nav.label || 'Navigation'}">
+        <div class="floor-arrow-shape"></div>
       </div>
       <span class="nav-label">${nav.label || 'Navigation'}</span>
     </div>`
   }, [])
 
+  // Generate tooltip content based on POI type
+  const generateTooltipContent = useCallback((poi: {
+    title: string
+    description?: string
+    icon: 'info' | 'image' | 'video' | 'link'
+    content?: {
+      type?: string
+      html?: string
+      src?: string
+      url?: string
+      label?: string
+      youtubeId?: string
+    }
+  }) => {
+    const content = poi.content
+    let mainContent = ''
+
+    switch (poi.icon) {
+      case 'info':
+        if (content?.html) {
+          mainContent = content.html
+        } else {
+          mainContent = `<p>${poi.description || 'Keine Beschreibung'}</p>`
+        }
+        break
+
+      case 'image':
+        if (content?.src) {
+          mainContent = `
+            <img src="${content.src}" alt="${poi.title}" class="poi-tooltip-image" />
+            ${poi.description ? `<p class="poi-tooltip-description">${poi.description}</p>` : ''}
+          `
+        } else {
+          mainContent = '<p>Kein Bild vorhanden</p>'
+        }
+        break
+
+      case 'video':
+        if (content?.youtubeId) {
+          mainContent = `
+            <div class="poi-tooltip-video">
+              <iframe 
+                src="https://www.youtube.com/embed/${content.youtubeId}?rel=0" 
+                allowfullscreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              ></iframe>
+            </div>
+            ${poi.description ? `<p class="poi-tooltip-description">${poi.description}</p>` : ''}
+          `
+        } else if (content?.src) {
+          mainContent = `
+            <div class="poi-tooltip-video">
+              <video src="${content.src}" controls playsinline preload="metadata">
+                Dein Browser unterstützt dieses Video-Format nicht.
+              </video>
+            </div>
+            ${poi.description ? `<p class="poi-tooltip-description">${poi.description}</p>` : ''}
+          `
+        } else if (content?.url) {
+          mainContent = `
+            <a href="${content.url}" target="_blank" rel="noopener noreferrer" class="poi-tooltip-video-link">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+              <span>Video abspielen</span>
+            </a>
+            ${poi.description ? `<p class="poi-tooltip-description">${poi.description}</p>` : ''}
+          `
+        } else {
+          mainContent = '<p>Kein Video vorhanden</p>'
+        }
+        break
+
+      case 'link':
+        if (content?.url) {
+          mainContent = `
+            <a href="${content.url}" target="_blank" rel="noopener noreferrer" class="poi-tooltip-link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+              <span>${content.label || 'Link öffnen'}</span>
+            </a>
+            <p class="poi-tooltip-url">${content.url}</p>
+            ${poi.description ? `<p class="poi-tooltip-description">${poi.description}</p>` : ''}
+          `
+        } else {
+          mainContent = '<p>Kein Link vorhanden</p>'
+        }
+        break
+
+      default:
+        mainContent = `<p>${poi.description || 'Keine Beschreibung'}</p>`
+    }
+
+    return mainContent
+  }, [])
+
   // Refresh all markers for current scene
   const refreshMarkers = useCallback(() => {
-    clearMarkers()
+    const methods = getViewerMethods()
+    if (!methods) return
+    
+    methods.clearMarkers()
     
     const pano = getCurrentPanorama()
     if (!pano) return
 
     const isEditor = mode === 'editor'
 
-    // Add POI markers
+    // Add POI markers with native tooltips (only in viewer mode)
     pano.pois?.forEach(poi => {
-      addMarker({
+      const tooltipContent = generateTooltipContent(poi)
+      
+      methods.addMarker({
         id: poi.id,
         position: poi.position,
         html: createPoiMarkerHtml(poi, isEditor),
         anchor: 'center center',
-        data: { type: 'poi', id: poi.id, ...poi }
+        data: { type: 'poi', id: poi.id, ...poi },
+        // Add native tooltip only in viewer mode
+        tooltip: !isEditor ? {
+          content: `<div class="poi-native-tooltip">
+            <div class="poi-native-tooltip-title">${poi.title || 'Info'}</div>
+            <div class="poi-native-tooltip-content">${tooltipContent}</div>
+          </div>`,
+          position: 'top',
+          trigger: 'click'
+        } : undefined
       })
     })
 
     // Add Nav Arrow markers
     pano.navArrows?.forEach(nav => {
-      addMarker({
+      methods.addMarker({
         id: nav.id,
         position: nav.position,
         html: createNavMarkerHtml(nav, isEditor),
@@ -85,7 +199,7 @@ export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseE
         data: { type: 'nav', id: nav.id, targetPanoramaId: nav.targetScene, ...nav }
       })
     })
-  }, [clearMarkers, getCurrentPanorama, mode, addMarker, createPoiMarkerHtml, createNavMarkerHtml])
+  }, [getViewerMethods, getCurrentPanorama, mode, createPoiMarkerHtml, createNavMarkerHtml])
 
   // Handle click on panorama
   const handlePanoramaClick = useCallback((position: Position3D) => {
@@ -135,12 +249,28 @@ export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseE
   ])
 
   // Handle click on marker
-  const handleMarkerClick = useCallback((markerId: string, data: MarkerData) => {
+  const handleMarkerClick = useCallback(async (markerId: string, data: MarkerData) => {
     if (mode === 'viewer') {
       // In viewer mode, show tooltip or navigate
       if (data.type === 'nav' && data.targetPanoramaId) {
-        // Navigate to target scene
-        useProjectStore.getState().setCurrentScene(data.targetPanoramaId as string)
+        const targetSceneId = data.targetPanoramaId as string
+        const targetPano = getPanoramaById(targetSceneId)
+        const methods = getViewerMethods()
+        
+        if (targetPano && methods?.switchPanorama) {
+          // Update store state first
+          setCurrentScene(targetSceneId)
+          
+          // Then switch panorama without destroying viewer
+          await methods.switchPanorama(
+            targetPano.tilesPath, 
+            targetPano.previewPath, 
+            targetPano.initialView
+          )
+          
+          // Refresh markers for new scene after a short delay
+          setTimeout(() => refreshMarkers(), 100)
+        }
       }
       // POI clicks in viewer mode are handled by PoiTooltip
       return
@@ -151,7 +281,7 @@ export function useEditorActions({ addMarker, removeMarker, clearMarkers }: UseE
       selectElement(data.type, markerId)
       setDraggingMarker(true)
     }
-  }, [mode, selectElement, setDraggingMarker])
+  }, [mode, selectElement, setDraggingMarker, getPanoramaById, setCurrentScene, getViewerMethods, refreshMarkers])
 
   // Keyboard shortcuts
   useEffect(() => {

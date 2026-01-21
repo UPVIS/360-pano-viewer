@@ -1,38 +1,23 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Eye, Edit2 } from 'lucide-react'
+import { ArrowLeft, Eye, Edit2, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanoViewer, type PanoViewerHandle } from '@/components/viewer/PanoViewer'
 import { ViewerControls } from '@/components/viewer/ViewerControls'
 import { Compass } from '@/components/viewer/Compass'
 import { SettingsPanel } from '@/components/viewer/SettingsPanel'
+import { StatsOverlay } from '@/components/viewer/StatsOverlay'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
 import { SceneStrip } from '@/components/editor/SceneStrip'
-import { PoiTooltip } from '@/components/viewer/PoiTooltip'
+import { ShareModal } from '@/components/editor/ShareModal'
 import { useEditorStore } from '@/stores/editorStore'
-import { useProjectStore, type PointOfInterest } from '@/stores/projectStore'
+import { useProjectStore } from '@/stores/projectStore'
 import { useEditorActions } from '@/hooks/useEditorActions'
+import { loadProject } from '@/lib/projectLoader'
+import { loadFromStorage } from '@/stores/projectStore'
 import type { PanoViewerCallbacks, Position3D, MarkerData } from '@/hooks/usePanoViewer'
 import { cn } from '@/lib/utils'
-
-// Demo project data
-const DEMO_PROJECT = {
-  id: 'demo',
-  name: 'Demo Projekt',
-  panoramas: [
-    {
-      id: 'scene-1',
-      name: 'Hauptansicht',
-      tilesPath: '/test-assets/tiles/sample/',
-      previewPath: '/test-assets/tiles/sample/preview.webp',
-      initialView: { yaw: 0, pitch: 0, fov: 75 },
-      pitchLimits: { min: -30, max: 30 },
-      pois: [],
-      navArrows: []
-    }
-  ]
-}
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -52,20 +37,50 @@ export function EditorPage() {
   const { project, currentSceneId, setProject, setCurrentScene, getCurrentPanorama } = useProjectStore()
 
   // Local state
-  const [activePoiTooltip, setActivePoiTooltip] = useState<PointOfInterest | null>(null)
+  const [isProjectLoading, setIsProjectLoading] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
 
-  // Initialize project on mount
+  // Load project on mount - check localStorage first, then load from JSON
   useEffect(() => {
-    if (!project) {
-      setProject(DEMO_PROJECT)
+    if (!project && !isProjectLoading) {
+      setIsProjectLoading(true)
+      
+      // First try to load from localStorage (saved changes)
+      const savedProject = loadFromStorage()
+      if (savedProject) {
+        console.log('[EditorPage] Gespeichertes Projekt geladen')
+        setProject(savedProject)
+        setIsProjectLoading(false)
+        return
+      }
+      
+      // Otherwise load from demo JSON
+      loadProject('/test-assets/demo-project.json')
+        .then((loadedProject) => {
+          setProject(loadedProject)
+          setIsProjectLoading(false)
+        })
+        .catch((err) => {
+          console.error('Failed to load project:', err)
+          setIsProjectLoading(false)
+        })
     }
-  }, [project, setProject])
+  }, [project, setProject, isProjectLoading])
 
-  // Editor actions with marker management
+  // Get viewer methods via a getter function to always get current ref
+  const getViewerMethods = useCallback(() => {
+    if (!viewerRef.current) return null
+    return {
+      addMarker: viewerRef.current.addMarker,
+      removeMarker: viewerRef.current.removeMarker,
+      clearMarkers: viewerRef.current.clearMarkers,
+      switchPanorama: viewerRef.current.switchPanorama
+    }
+  }, [])
+
+  // Editor actions with marker management and switchPanorama
   const editorActions = useEditorActions({
-    addMarker: viewerRef.current?.addMarker || (() => {}),
-    removeMarker: viewerRef.current?.removeMarker || (() => {}),
-    clearMarkers: viewerRef.current?.clearMarkers || (() => {})
+    getViewerMethods
   })
 
   // Viewer callbacks
@@ -74,19 +89,16 @@ export function EditorPage() {
       editorActions.handlePanoramaClick(position)
     },
     onMarkerClick: (markerId: string, data: MarkerData) => {
+      // In viewer mode, POI tooltips are handled natively by PSV (trigger: 'click')
+      // We only need to handle editor mode and navigation arrows
       if (mode === 'viewer' && data.type === 'poi') {
-        // Show POI tooltip in viewer mode
-        const pano = getCurrentPanorama()
-        const poi = pano?.pois.find(p => p.id === markerId)
-        if (poi) {
-          setActivePoiTooltip(poi)
-        }
-      } else {
-        editorActions.handleMarkerClick(markerId, data)
+        // Native PSV tooltip handles this - do nothing
+        return
       }
+      editorActions.handleMarkerClick(markerId, data)
     },
     onPositionUpdate: (position: Position3D) => {
-      const zoom = viewerRef.current?.getPosition() ? 50 : 50 // Default zoom
+      const zoom = viewerRef.current?.getZoomLevel() ?? 50
       setViewerPosition({
         yaw: position.yaw,
         pitch: position.pitch,
@@ -97,9 +109,9 @@ export function EditorPage() {
       // Refresh markers when viewer is ready
       setTimeout(() => editorActions.refreshMarkers(), 100)
     }
-  }), [mode, editorActions, getCurrentPanorama, setViewerPosition])
+  }), [mode, editorActions, setViewerPosition])
 
-  // Get current panorama options
+  // Get current panorama options - only change when panorama changes
   const currentPano = getCurrentPanorama()
   const viewerOptions = useMemo(() => {
     if (!currentPano) {
@@ -115,10 +127,10 @@ export function EditorPage() {
       tilesPath: currentPano.tilesPath,
       previewPath: currentPano.previewPath,
       initialView: currentPano.initialView,
-      autoRotate: isAutorotating,
+      autoRotate: false, // Don't trigger reinit on autorotate change
       autoRotateSpeed: 0.3
     }
-  }, [currentPano, isAutorotating])
+  }, [currentPano?.tilesPath, currentPano?.previewPath, currentPano?.initialView])
 
   // Refresh markers when scene or mode changes
   useEffect(() => {
@@ -138,20 +150,28 @@ export function EditorPage() {
     // TODO: Open upload dialog
   }, [])
 
-  const handleSceneChange = useCallback((sceneId: string) => {
-    setCurrentScene(sceneId)
-  }, [setCurrentScene])
+  const handleSceneChange = useCallback(async (sceneId: string) => {
+    const targetPano = project?.panoramas.find(p => p.id === sceneId)
+    if (targetPano && viewerRef.current) {
+      // Update store state
+      setCurrentScene(sceneId)
+      // Switch panorama without destroying viewer
+      await viewerRef.current.switchPanorama(
+        targetPano.tilesPath,
+        targetPano.previewPath,
+        targetPano.initialView
+      )
+      // Refresh markers for new scene
+      setTimeout(() => editorActions.refreshMarkers(), 100)
+    }
+  }, [project, setCurrentScene, editorActions])
 
   const handleZoomIn = useCallback(() => {
-    // Zoom in by 10%
-    const currentZoom = viewerRef.current?.getPosition()
-    if (viewerRef.current) {
-      // PSV uses zoom levels 0-100
-    }
+    viewerRef.current?.zoomIn()
   }, [])
 
   const handleZoomOut = useCallback(() => {
-    // Zoom out by 10%
+    viewerRef.current?.zoomOut()
   }, [])
 
   const handleResetNorth = useCallback(() => {
@@ -159,8 +179,14 @@ export function EditorPage() {
   }, [])
 
   const handleToggleAutorotate = useCallback(() => {
-    // Toggle is handled in store, but we could trigger viewer here
-  }, [])
+    if (viewerRef.current?.isAutorotating()) {
+      viewerRef.current?.stopAutorotate()
+      setAutorotating(false)
+    } else {
+      viewerRef.current?.startAutorotate()
+      setAutorotating(true)
+    }
+  }, [setAutorotating])
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
@@ -201,8 +227,13 @@ export function EditorPage() {
           </Button>
         </div>
 
-        {/* Right: Spacer (controls moved to overlay) */}
-        <div className="w-[100px]" />
+        {/* Right: Share Button */}
+        <div className="w-[100px] flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setShareModalOpen(true)}>
+            <Share2 className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Teilen</span>
+          </Button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -226,7 +257,21 @@ export function EditorPage() {
         <Compass onResetNorth={handleResetNorth} />
 
         {/* Settings Panel */}
-        <SettingsPanel />
+        <SettingsPanel 
+          onAutorotateChange={(enabled) => {
+            if (enabled) {
+              viewerRef.current?.startAutorotate()
+            } else {
+              viewerRef.current?.stopAutorotate()
+            }
+          }}
+          onPitchLimitsChange={(min, max) => {
+            viewerRef.current?.setPitchRange(min, max)
+          }}
+        />
+
+        {/* Stats Overlay */}
+        <StatsOverlay />
 
         {/* Editor Toolbar (only in editor mode) */}
         <EditorToolbar />
@@ -240,11 +285,7 @@ export function EditorPage() {
           onSceneChange={handleSceneChange}
         />
 
-        {/* POI Tooltip (Viewer Mode) */}
-        <PoiTooltip 
-          poi={activePoiTooltip}
-          onClose={() => setActivePoiTooltip(null)}
-        />
+        {/* POI Tooltips are now handled natively by PSV MarkersPlugin */}
 
         {/* Placement/Drag Cursor Indicator */}
         {(placementMode || isDraggingMarker) && (
@@ -256,6 +297,12 @@ export function EditorPage() {
           />
         )}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal 
+        open={shareModalOpen} 
+        onOpenChange={setShareModalOpen}
+      />
     </div>
   )
 }

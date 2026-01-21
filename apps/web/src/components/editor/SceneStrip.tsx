@@ -72,23 +72,23 @@ export function SceneStrip({ onUpload, onSceneChange }: SceneStripProps) {
   }
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-40">
-      <div className="bg-card/90 backdrop-blur-md border border-border rounded-lg p-3">
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-thin">
+    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)]">
+      <div className="bg-card/90 backdrop-blur-md border border-border rounded-lg p-3.5 shadow-xl">
+        <div className="flex items-center gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
           {panoramas.map((pano, index) => (
             <div
               key={pano.id}
               className={cn(
-                'relative shrink-0 group cursor-pointer transition-all',
+                'relative shrink-0 group cursor-pointer transition-all duration-150',
                 'rounded-md overflow-hidden border-2',
                 currentSceneId === pano.id
                   ? 'border-primary ring-2 ring-primary/30'
-                  : 'border-transparent hover:border-primary/50'
+                  : 'border-transparent hover:border-white/40 hover:-translate-y-0.5 hover:shadow-lg'
               )}
               onClick={() => handleSceneClick(pano.id)}
             >
-              {/* Thumbnail */}
-              <div className="w-28 h-20 bg-secondary">
+              {/* Thumbnail - Matching prototype size 120x80 */}
+              <div className="w-[120px] min-w-[120px] h-[80px] bg-secondary">
                 <img
                   src={pano.previewPath}
                   alt={pano.name}
@@ -163,7 +163,7 @@ export function SceneStrip({ onUpload, onSceneChange }: SceneStripProps) {
             <button
               onClick={onUpload}
               className={cn(
-                'shrink-0 w-28 h-20 rounded-md',
+                'shrink-0 w-[120px] min-w-[120px] h-[80px] rounded-md',
                 'border-2 border-dashed border-border',
                 'hover:border-primary/50 hover:bg-secondary/50',
                 'flex flex-col items-center justify-center gap-1',

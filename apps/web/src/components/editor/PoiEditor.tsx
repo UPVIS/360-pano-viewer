@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useEditorStore } from '@/stores/editorStore'
 import { useProjectStore, type PointOfInterest, type PoiContent } from '@/stores/projectStore'
+
+// Lazy load RichTextEditor since Quill is heavy
+const RichTextEditor = lazy(() => import('./RichTextEditor').then(m => ({ default: m.RichTextEditor })))
 
 const iconOptions = [
   { value: 'info', label: 'Info' },
@@ -89,17 +92,21 @@ export function PoiEditor() {
         </select>
       </div>
 
-      {/* Content based on type */}
+      {/* Content based on type - WYSIWYG Editor for Info */}
       {icon === 'info' && (
         <div className="space-y-2">
-          <Label htmlFor="poi-html">Inhalt (HTML)</Label>
-          <textarea
-            id="poi-html"
-            value={content.html || ''}
-            onChange={(e) => setContent({ ...content, html: e.target.value })}
-            placeholder="<p>Beschreibung...</p>"
-            className="w-full h-32 px-3 py-2 rounded-md border border-input bg-background text-sm resize-none"
-          />
+          <Label>Inhalt</Label>
+          <Suspense fallback={
+            <div className="w-full h-32 rounded-md border border-input bg-background flex items-center justify-center">
+              <span className="text-sm text-muted-foreground">Editor wird geladen...</span>
+            </div>
+          }>
+            <RichTextEditor
+              value={content.html || ''}
+              onChange={(html) => setContent({ ...content, html })}
+              placeholder="Beschreibung eingeben..."
+            />
+          </Suspense>
         </div>
       )}
 

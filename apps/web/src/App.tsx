@@ -13,8 +13,8 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/view/:id" element={<PublicViewerPage />} />
-        <Route path="/embed/:id" element={<EmbedViewerPage />} />
+        <Route path="/view/:slug" element={<PublicViewerPage />} />
+        <Route path="/embed/:slug" element={<EmbedViewerPage />} />
 
         {/* Protected Routes (with Layout) */}
         <Route element={<AppLayout />}>

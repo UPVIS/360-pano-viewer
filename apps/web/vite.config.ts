@@ -11,4 +11,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Serve test-assets from workspace root
+  publicDir: 'public',
+  server: {
+    fs: {
+      // Allow serving files from the workspace root (for test-assets)
+      allow: ['..', '../..'],
+    },
+  },
 })

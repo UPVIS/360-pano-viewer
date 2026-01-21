@@ -15,6 +15,11 @@ export interface ViewerPosition {
   zoom: number
 }
 
+export interface PitchLimits {
+  min: number // In degrees, e.g. -45
+  max: number // In degrees, e.g. 45
+}
+
 interface EditorState {
   // Mode
   mode: EditorMode
@@ -34,6 +39,8 @@ interface EditorState {
   // Viewer State
   isAutorotating: boolean
   viewerPosition: ViewerPosition
+  showStats: boolean
+  pitchLimits: PitchLimits
   
   // Actions
   setMode: (mode: EditorMode) => void
@@ -58,6 +65,11 @@ interface EditorState {
   toggleAutorotate: () => void
   
   setViewerPosition: (position: ViewerPosition) => void
+  
+  setShowStats: (show: boolean) => void
+  toggleStats: () => void
+  
+  setPitchLimits: (limits: PitchLimits) => void
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -71,6 +83,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   settingsVisible: false,
   isAutorotating: false,
   viewerPosition: { yaw: 0, pitch: 0, zoom: 50 },
+  showStats: false,
+  pitchLimits: { min: -45, max: 45 },
   
   // Mode Actions
   setMode: (mode) => set((state) => {
@@ -161,5 +175,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   toggleAutorotate: () => set((state) => ({ isAutorotating: !state.isAutorotating })),
   
   // Viewer Position
-  setViewerPosition: (position) => set({ viewerPosition: position })
+  setViewerPosition: (position) => set({ viewerPosition: position }),
+  
+  // Stats
+  setShowStats: (show) => set({ showStats: show }),
+  toggleStats: () => set((state) => ({ showStats: !state.showStats })),
+  
+  // Pitch Limits
+  setPitchLimits: (limits) => set({ pitchLimits: limits })
 }))
