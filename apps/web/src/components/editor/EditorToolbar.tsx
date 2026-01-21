@@ -18,7 +18,7 @@ export function EditorToolbar() {
   }
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
       <div className="flex items-center gap-1 px-2 py-1.5 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-lg">
         {/* Selection Tool */}
         <Button

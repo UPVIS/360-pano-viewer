@@ -17,7 +17,7 @@ interface SceneStripProps {
 }
 
 export function SceneStrip({ onUpload, onSceneChange }: SceneStripProps) {
-  const { mode, selectElement } = useEditorStore()
+  const { mode, selectElement, scenesVisible, toggleScenes } = useEditorStore()
   const { 
     project, 
     currentSceneId, 
@@ -29,6 +29,9 @@ export function SceneStrip({ onUpload, onSceneChange }: SceneStripProps) {
 
   const isEditor = mode === 'editor'
   const panoramas = project?.panoramas || []
+
+  // Only show when scenesVisible is true
+  if (!scenesVisible) return null
 
   const handleSceneClick = (sceneId: string) => {
     setCurrentScene(sceneId)

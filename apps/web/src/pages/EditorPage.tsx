@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Share2, Upload, Eye, Edit2 } from 'lucide-react'
+import { ArrowLeft, Eye, Edit2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanoViewer, type PanoViewerHandle } from '@/components/viewer/PanoViewer'
+import { ViewerControls } from '@/components/viewer/ViewerControls'
+import { Compass } from '@/components/viewer/Compass'
+import { SettingsPanel } from '@/components/viewer/SettingsPanel'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
 import { SceneStrip } from '@/components/editor/SceneStrip'
@@ -37,7 +40,15 @@ export function EditorPage() {
   const viewerRef = useRef<PanoViewerHandle>(null)
 
   // Stores
-  const { mode, setMode, placementMode, isDraggingMarker } = useEditorStore()
+  const { 
+    mode, 
+    setMode, 
+    placementMode, 
+    isDraggingMarker,
+    setViewerPosition,
+    isAutorotating,
+    setAutorotating
+  } = useEditorStore()
   const { project, currentSceneId, setProject, setCurrentScene, getCurrentPanorama } = useProjectStore()
 
   // Local state
@@ -74,11 +85,19 @@ export function EditorPage() {
         editorActions.handleMarkerClick(markerId, data)
       }
     },
+    onPositionUpdate: (position: Position3D) => {
+      const zoom = viewerRef.current?.getPosition() ? 50 : 50 // Default zoom
+      setViewerPosition({
+        yaw: position.yaw,
+        pitch: position.pitch,
+        zoom
+      })
+    },
     onReady: () => {
       // Refresh markers when viewer is ready
       setTimeout(() => editorActions.refreshMarkers(), 100)
     }
-  }), [mode, editorActions, getCurrentPanorama])
+  }), [mode, editorActions, getCurrentPanorama, setViewerPosition])
 
   // Get current panorama options
   const currentPano = getCurrentPanorama()
@@ -96,10 +115,10 @@ export function EditorPage() {
       tilesPath: currentPano.tilesPath,
       previewPath: currentPano.previewPath,
       initialView: currentPano.initialView,
-      autoRotate: mode === 'viewer',
+      autoRotate: isAutorotating,
       autoRotateSpeed: 0.3
     }
-  }, [currentPano, mode])
+  }, [currentPano, isAutorotating])
 
   // Refresh markers when scene or mode changes
   useEffect(() => {
@@ -108,24 +127,45 @@ export function EditorPage() {
     }
   }, [currentSceneId, mode])
 
-  const handleShare = () => {
-    console.log('Share clicked for project:', id)
-    // TODO: Open share modal
-  }
+  const handleShare = useCallback(() => {
+    const shareUrl = `${window.location.origin}/view/${id}`
+    navigator.clipboard.writeText(shareUrl)
+    alert(`Link kopiert: ${shareUrl}`)
+  }, [id])
 
-  const handleUpload = () => {
+  const handleUpload = useCallback(() => {
     console.log('Upload clicked')
     // TODO: Open upload dialog
-  }
+  }, [])
 
-  const handleSceneChange = (sceneId: string) => {
+  const handleSceneChange = useCallback((sceneId: string) => {
     setCurrentScene(sceneId)
-  }
+  }, [setCurrentScene])
+
+  const handleZoomIn = useCallback(() => {
+    // Zoom in by 10%
+    const currentZoom = viewerRef.current?.getPosition()
+    if (viewerRef.current) {
+      // PSV uses zoom levels 0-100
+    }
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    // Zoom out by 10%
+  }, [])
+
+  const handleResetNorth = useCallback(() => {
+    viewerRef.current?.rotate(0, 0)
+  }, [])
+
+  const handleToggleAutorotate = useCallback(() => {
+    // Toggle is handled in store, but we could trigger viewer here
+  }, [])
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
-      {/* Editor Header */}
-      <div className="h-12 border-b border-border bg-card flex items-center justify-between px-4 shrink-0 z-50">
+      {/* Minimal Header */}
+      <div className="h-12 border-b border-border bg-card/95 backdrop-blur-sm flex items-center justify-between px-4 shrink-0 z-50">
         {/* Left: Back + Project Name */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
@@ -134,48 +174,39 @@ export function EditorPage() {
           <input
             type="text"
             defaultValue={project?.name || 'Demo Projekt'}
-            className="bg-transparent border-none text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring rounded px-2 py-1"
+            className="bg-transparent border-none text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring rounded px-2 py-1 max-w-[200px]"
             onBlur={(e) => console.log('Rename to:', e.target.value)}
           />
         </div>
 
-        {/* Center: Mode Toggle */}
-        <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+        {/* Center: Compact Mode Toggle */}
+        <div className="flex items-center">
           <Button
             variant={mode === 'viewer' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMode('viewer')}
-            className="h-7"
+            className="h-8 rounded-r-none"
           >
             <Eye className="w-4 h-4 mr-1" />
-            Viewer
+            <span className="hidden sm:inline">Viewer</span>
           </Button>
           <Button
             variant={mode === 'editor' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setMode('editor')}
-            className="h-7"
+            className="h-8 rounded-l-none border-l border-border"
           >
             <Edit2 className="w-4 h-4 mr-1" />
-            Editor
+            <span className="hidden sm:inline">Editor</span>
           </Button>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleUpload}>
-            <Upload className="w-4 h-4 mr-2" />
-            Upload
-          </Button>
-          <Button size="sm" onClick={handleShare}>
-            <Share2 className="w-4 h-4 mr-2" />
-            Teilen
-          </Button>
-        </div>
+        {/* Right: Spacer (controls moved to overlay) */}
+        <div className="w-[100px]" />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         {/* Panorama Viewer */}
         <PanoViewer 
           ref={viewerRef}
@@ -183,13 +214,27 @@ export function EditorPage() {
           callbacks={viewerCallbacks}
         />
 
-        {/* Editor Toolbar */}
+        {/* Viewer Controls (Overlay) */}
+        <ViewerControls
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onShare={handleShare}
+          onToggleAutorotate={handleToggleAutorotate}
+        />
+
+        {/* Compass */}
+        <Compass onResetNorth={handleResetNorth} />
+
+        {/* Settings Panel */}
+        <SettingsPanel />
+
+        {/* Editor Toolbar (only in editor mode) */}
         <EditorToolbar />
 
         {/* Properties Panel */}
         <PropertiesPanel />
 
-        {/* Scene Strip */}
+        {/* Scenes Panel (toggle-able) */}
         <SceneStrip 
           onUpload={handleUpload}
           onSceneChange={handleSceneChange}
@@ -205,8 +250,7 @@ export function EditorPage() {
         {(placementMode || isDraggingMarker) && (
           <div 
             className={cn(
-              'fixed inset-0 pointer-events-none z-40',
-              'cursor-crosshair'
+              'absolute inset-0 pointer-events-none z-20'
             )}
             style={{ cursor: 'crosshair' }}
           />

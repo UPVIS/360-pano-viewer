@@ -9,6 +9,12 @@ export interface SelectedElement {
   id: string
 }
 
+export interface ViewerPosition {
+  yaw: number
+  pitch: number
+  zoom: number
+}
+
 interface EditorState {
   // Mode
   mode: EditorMode
@@ -22,6 +28,12 @@ interface EditorState {
   
   // Panels
   propsVisible: boolean
+  scenesVisible: boolean
+  settingsVisible: boolean
+  
+  // Viewer State
+  isAutorotating: boolean
+  viewerPosition: ViewerPosition
   
   // Actions
   setMode: (mode: EditorMode) => void
@@ -37,6 +49,15 @@ interface EditorState {
   
   showPropertiesPanel: () => void
   hidePropertiesPanel: () => void
+  
+  toggleScenes: () => void
+  toggleSettings: () => void
+  closeAllPanels: () => void
+  
+  setAutorotating: (isAutorotating: boolean) => void
+  toggleAutorotate: () => void
+  
+  setViewerPosition: (position: ViewerPosition) => void
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -46,6 +67,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   placementMode: null,
   isDraggingMarker: false,
   propsVisible: false,
+  scenesVisible: false,
+  settingsVisible: false,
+  isAutorotating: false,
+  viewerPosition: { yaw: 0, pitch: 0, zoom: 50 },
   
   // Mode Actions
   setMode: (mode) => set((state) => {
@@ -110,5 +135,31 @@ export const useEditorStore = create<EditorState>((set) => ({
   hidePropertiesPanel: () => set({ 
     propsVisible: false,
     selectedElement: null 
-  })
+  }),
+  
+  // Scenes Panel
+  toggleScenes: () => set((state) => ({
+    scenesVisible: !state.scenesVisible,
+    settingsVisible: false // Close settings when opening scenes
+  })),
+  
+  // Settings Panel
+  toggleSettings: () => set((state) => ({
+    settingsVisible: !state.settingsVisible,
+    scenesVisible: false // Close scenes when opening settings
+  })),
+  
+  // Close all panels
+  closeAllPanels: () => set({
+    scenesVisible: false,
+    settingsVisible: false,
+    propsVisible: false
+  }),
+  
+  // Autorotate
+  setAutorotating: (isAutorotating) => set({ isAutorotating }),
+  toggleAutorotate: () => set((state) => ({ isAutorotating: !state.isAutorotating })),
+  
+  // Viewer Position
+  setViewerPosition: (position) => set({ viewerPosition: position })
 }))
